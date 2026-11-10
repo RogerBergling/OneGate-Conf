@@ -1,6 +1,5 @@
+import { isSensitiveKeyName } from './parser/secrets.js';
 import { safeDecode } from './parser/values.js';
-
-const SECRET_KEY_PATTERN = /(^|_)(password|passwd|pwd|secret|token|apikey|privatekey|accessToken)$/i;
 
 export const ACL_COLUMNS = [
   { key: 'environmentName', label: 'Environment' },
@@ -28,7 +27,7 @@ function sanitizeExtra(value) {
   if (value && typeof value === 'object') {
     const output = {};
     for (const [key, child] of Object.entries(value)) {
-      output[key] = SECRET_KEY_PATTERN.test(key) ? '[redacted]' : sanitizeExtra(child);
+      output[key] = isSensitiveKeyName(key) ? '[redacted]' : sanitizeExtra(child);
     }
     return output;
   }
@@ -57,7 +56,7 @@ export function flattenAclRecord(record, columns = ACL_COLUMNS) {
 
 function csvEscape(value) {
   let text = cellValue(value);
-  if (/^[=+\-@\t\r]/.test(text)) text = `'${text}`;
+  if (/^[\t\r\n]/.test(text) || /^\s*[=+\-@]/.test(text)) text = `'${text}`;
   if (/[",\n\r]/.test(text)) {
     return `"${text.replace(/"/g, '""')}"`;
   }

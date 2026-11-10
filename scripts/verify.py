@@ -36,6 +36,7 @@ REQUIRED = [
     "Dockerfile",
     ".dockerignore",
     "compose.yaml",
+    ".gitleaks.toml",
     "LICENSE",
     ".github/workflows/ci.yml",
     ".github/workflows/docker-publish.yml",
@@ -102,6 +103,16 @@ def main() -> int:
     for token in ("fixtures", "local-configs", ".env", ".git"):
         if token not in dockerignore:
             fail(errors, f".dockerignore is missing {token!r}")
+
+    ci = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+    for token in ("secret-scan", "gitleaks", ".gitleaks.toml", "--redact"):
+        if token not in ci:
+            fail(errors, f"CI secret scan is missing: {token}")
+
+    gitleaks = (ROOT / ".gitleaks.toml").read_text(encoding="utf-8")
+    for token in ("useDefault = true", "demo-only-not-a-real-secret"):
+        if token not in gitleaks:
+            fail(errors, f".gitleaks.toml is missing: {token}")
 
     if "MIT License" not in (ROOT / "LICENSE").read_text(encoding="utf-8"):
         fail(errors, "LICENSE does not contain the MIT license text")

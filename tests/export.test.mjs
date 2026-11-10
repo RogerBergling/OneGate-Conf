@@ -45,6 +45,7 @@ test('CSV export has a header, all records, and formula-injection protection', (
     resource: '=cmd',
     group: '+SUM',
     path: '-1',
+    ipAddress: '  =cmd',
     extra: {},
   };
   const csv = toCsv([danger, RECORD]);
@@ -52,6 +53,7 @@ test('CSV export has a header, all records, and formula-injection protection', (
   assert.match(csv, /'=cmd/);
   assert.match(csv, /'\+SUM/);
   assert.match(csv, /'-1/);
+  assert.match(csv, /'  =cmd/);
   assert.equal(csv.includes('not-for-export'), false);
 });
 

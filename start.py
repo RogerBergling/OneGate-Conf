@@ -129,20 +129,25 @@ class OneGateHandler(BaseHTTPRequestHandler):
     def do_HEAD(self) -> None:  # noqa: N802
         self._serve(head_only=True)
 
-    def do_POST(self) -> None:  # noqa: N802
+    def _reject_method(self) -> None:
+        # Do not leave an unread request body on a persistent connection.
+        self.close_connection = True
         self._send_text(HTTPStatus.METHOD_NOT_ALLOWED, "Method not allowed")
+
+    def do_POST(self) -> None:  # noqa: N802
+        self._reject_method()
 
     def do_PUT(self) -> None:  # noqa: N802
-        self._send_text(HTTPStatus.METHOD_NOT_ALLOWED, "Method not allowed")
+        self._reject_method()
 
     def do_DELETE(self) -> None:  # noqa: N802
-        self._send_text(HTTPStatus.METHOD_NOT_ALLOWED, "Method not allowed")
+        self._reject_method()
 
     def do_PATCH(self) -> None:  # noqa: N802
-        self._send_text(HTTPStatus.METHOD_NOT_ALLOWED, "Method not allowed")
+        self._reject_method()
 
     def do_OPTIONS(self) -> None:  # noqa: N802
-        self._send_text(HTTPStatus.METHOD_NOT_ALLOWED, "Method not allowed")
+        self._reject_method()
 
 
 def port_is_free(host: str, port: int) -> bool:

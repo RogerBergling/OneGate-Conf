@@ -31,7 +31,9 @@ const BASE = `<HEADER>\tTEST_CONFIG
         "stringAttribs": {
           "RESOURCE_NAME": "portal",
           "TYPE": "https",
-          "FORCE_INTERNAL_AUTH_PWD": "demo-resource-secret"
+          "FORCE_INTERNAL_AUTH_PWD": "demo-resource-secret",
+          "PASSWORD": "demo-unknown-secret",
+          "clientSecret": "demo-camel-secret"
         },
         "listAttribs": {
           "ADDRESS_LIST": ["192.0.2.10"],
@@ -74,6 +76,7 @@ const BASE = `<HEADER>\tTEST_CONFIG
           {
             "group": "*",
             "auth": "smstoken",
+            "client_secret": "demo-acl-secret",
             "encryption": "high",
             "ipadress": "*",
             "time": null,
@@ -151,15 +154,27 @@ test('parseFile parses properties, JSON, tables and redacts secrets', () => {
   const server = parsed.sections.find((section) => section.name === 'SERVER');
   assert.equal(server.value.defaulthostname, 'portal.example.com');
   assert.equal(server.value.controlpassword.__secret, true);
-  assert.equal(JSON.stringify(parsed).includes('demo-control-secret'), false);
+  const serialized = JSON.stringify(parsed);
+  for (const secret of ['demo-control-secret', 'demo-resource-secret', 'demo-unknown-secret', 'demo-camel-secret', 'demo-acl-secret']) {
+    assert.equal(serialized.includes(secret), false, `secret leaked: ${secret}`);
+  }
 
   const resourceList = parsed.sections.find((section) => section.name === 'RESOURCE_LIST');
   assert.equal(resourceList.value.resourceMap.length, 2);
-  assert.equal(JSON.stringify(parsed).includes('demo-resource-secret'), false);
 
   const acl = parsed.sections.find((section) => section.name === 'ACL');
   assert.equal(acl.value[0].resource, 'portal');
   assert.equal(acl.value[0].sso, 'false - -');
+});
+
+test('invalid JSON errors never echo configuration content', () => {
+  const malformed = `<RESOURCE_LIST>
+{"resourceMap":[{"portal":{"stringAttribs":{"PASSWORD":"demo-error-secret"}}}]
+</RESOURCE_LIST>`;
+  const parsed = parseFile({ fileName: 'bad.conf', text: malformed }, new SecretVault());
+  assert.equal(parsed.errors.length, 1);
+  assert.equal(parsed.errors[0].message, 'Invalid JSON in section <RESOURCE_LIST>');
+  assert.equal(JSON.stringify(parsed).includes('demo-error-secret'), false);
 });
 
 test('buildEnvironment assembles resource profiles and ACL records', () => {
@@ -178,6 +193,9 @@ test('buildEnvironment assembles resource profiles and ACL records', () => {
   assert.equal(portal.counts.aclTotal, 2);
   assert.equal(portal.aclRules[0].localService, '/');
   assert.equal(portal.aclRules[0].resourceType, 'web');
+  assert.equal(portal.aclRules[0].extra.client_secret, '[redacted]');
+  assert.equal(portal.resourceList.stringAttribs.PASSWORD.__secret, true);
+  assert.equal(portal.resourceList.stringAttribs.clientSecret.__secret, true);
   assert.equal(environment.aclRecords.length, 2);
   assert.equal(environment.nodeCount, 0);
   assert.ok(environment.unknownSections.includes('FUTURE_SECTION'));

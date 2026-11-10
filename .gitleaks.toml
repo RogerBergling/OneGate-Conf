@@ -1,0 +1,19 @@
+title = "OneGate Config Compare"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Synthetic demo/test values and binary screenshots only"
+paths = [
+  '''docs/screenshots/.*''',
+]
+regexes = [
+  '''demo-only-not-a-real-secret''',
+  '''demo-control-secret''',
+  '''demo-resource-secret''',
+  '''demo-unknown-secret''',
+  '''demo-camel-secret''',
+  '''demo-acl-secret''',
+  '''demo-error-secret''',
+]

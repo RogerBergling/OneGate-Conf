@@ -1096,7 +1096,7 @@ function exportResourcesCsv() {
   if (!state.result) return;
   const csv = toResourceCsv(state.result.resources, state.result.environments);
   downloadText(`onegate-resources-${timestampSlug()}.csv`, csv, 'text/csv;charset=utf-8');
-  toast(`Exported ${formatNumber(state.result.resources.length)} resources.`, 'ok');
+  toast(`Exported ${formatNumber(state.result.resources.length)} resources. The CSV contains internal addresses and resource names.`, 'ok');
 }
 
 function exportAcl(scope) {
@@ -1118,7 +1118,7 @@ function exportAcl(scope) {
   } else {
     downloadText(`${base}.csv`, toCsv(records, columns), 'text/csv;charset=utf-8');
   }
-  toast(`Exported ${formatNumber(records.length)} ACL rules (${format.toUpperCase()}).`, 'ok');
+  toast(`Exported ${formatNumber(records.length)} ACL rules (${format.toUpperCase()}). Treat the file as sensitive.`, 'ok');
 }
 
 function renderSchema() {

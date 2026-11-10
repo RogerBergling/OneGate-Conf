@@ -1,6 +1,6 @@
 import { splitSections, isComment, isBlank } from './tokenize.js';
 import { getSchema } from './schema.js';
-import { secretMarker } from './secrets.js';
+import { isSensitiveKeyName, secretMarker } from './secrets.js';
 
 function cleanResource(value) {
   const text = String(value ?? '').trim();
@@ -85,7 +85,7 @@ function parseProperties(section, schema, vault) {
       warnings.push({ line: line.line, message: `Duplicate property "${key}"; last value wins` });
     }
 
-    value[key] = secretKeys.has(key)
+    value[key] = (secretKeys.has(key) || isSensitiveKeyName(key))
       ? secretMarker(vault, rawValue, key, `${section.name}.${key}`)
       : rawValue;
   }
@@ -148,7 +148,8 @@ function redactJson(value, secretKeys, vault, sectionName, path = []) {
     const output = {};
     for (const [key, child] of Object.entries(value)) {
       const childPath = [...path, key];
-      if (secretKeys.has(key) && (typeof child === 'string' || typeof child === 'number' || child === null || child === undefined)) {
+      if ((secretKeys.has(key) || isSensitiveKeyName(key))
+        && (typeof child === 'string' || typeof child === 'number' || child === null || child === undefined)) {
         output[key] = secretMarker(vault, child, key, `${sectionName}.${childPath.join('.')}`);
       } else {
         output[key] = redactJson(child, secretKeys, vault, sectionName, childPath);
@@ -169,12 +170,14 @@ function parseJson(section, schema, vault) {
     const secretKeys = new Set(schema.secrets || []);
     const value = redactJson(parsed, secretKeys, vault, section.name);
     return { kind: 'json', value, warnings: [], errors: [] };
-  } catch (error) {
+  } catch {
+    // JSON parser messages can include fragments of the input. Never echo them
+    // back to the UI, because that input may contain credentials.
     return {
       kind: 'json',
       value: null,
       warnings: [],
-      errors: [{ line: section.startLine, message: `Invalid JSON: ${error.message}` }],
+      errors: [{ line: section.startLine, message: `Invalid JSON in section <${section.name}>` }],
     };
   }
 }

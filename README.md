@@ -147,7 +147,7 @@ The goal is a local-first browser tool that answers, for 1-5 named environments.
 | Review output | ACL export is implemented as CSV, HTML and JSON. The acceptance ledger and OK ticks are planned. |
 | Delivery | Docker image published to GHCR, port `8008`, multi-arch, bound to `127.0.0.1` by default. |
 | License | MIT. |
-| Scale | Up to 5,000 rows per config file. |
+| Scale | Up to 5,000 rows and 25 MB per config file. |
 | First release | Resource verification plus a global ACL view and export. Full config diff follows. |
 | Node config | Optional; only relevant for clustered deployments. |
 
@@ -348,13 +348,16 @@ The config files are plain text, so secret values are present in the uploaded fi
 
 - known key patterns such as `pwd`, `password`, `passwd`, `ldap password` / `ldap.password`, `certificatepass`, `controlpassword`, `consolemenupassword`, `AdminPassword`, `AdminPasswordLocal`, `smtppassword`, `failover_pwd`, `certpwd`, `secret`, `client_secret`, `token`, `apiKey`, `privateKey`, `accessToken`, `FORCE_INTERNAL_AUTH_PWD`, `pwdhash`, and case/separator variants;
 - section context: `key` is secret in `<YUBIKEY>` but may be ordinary elsewhere; `secret` is secret in `<TUNNEL_CLIENT>`;
+- generic suffix matching for `password`, `passwd`, `pwd`, `secret`, `token`, `apiKey`, `privateKey`, `accessToken` and `passphrase` in nested JSON and ACL extra fields;
 - embedded credentials in URLs and connection strings;
 - private-key blocks and authorization headers, if they ever appear;
 - high-entropy values that look like tokens, flagged for review without displaying them.
 
-Secrets may be URL-encoded or base64. They are decoded only in memory for equality comparison, never for display. The comparison retains only an opaque equality result; the raw value never enters the model that the UI receives. A **redaction review** lists the field paths and why they were classified as secret, again without values. If the classification is uncertain, the tool fails closed and redacts.
+Secrets may be URL-encoded or base64. They are decoded only in memory for equality comparison, never for display. The comparison retains only an opaque equality result; the raw value never enters the model that the UI receives. The worker clears its raw secret vault after parsing, and invalid JSON errors are reported without echoing the input.
 
 There is deliberately **no reveal button**. If a value must be inspected, open the source file in your own editor.
+
+The current redaction heuristic is not omniscient. A secret in an unusually named field or inside free text can still be missed; there is no complete UI redaction-review workflow yet. Treat every export as sensitive.
 
 ### Expected differences
 
@@ -431,6 +434,18 @@ Static server ──► HTML, CSS, JavaScript only
 - **Secret detection is not omniscient.** A secret hidden in an unusual free-text field may not be recognised. The redaction review exists so the user can add fields before relying on the result.
 
 The in-app **Security & privacy** page will state these limits in the same plain language, so users are informed before they import a file.
+
+### Secret scanning
+
+CI runs **Gitleaks 8.30.1** over the working tree and full git history. Findings fail the CI job, and `--redact` keeps secret values out of the logs. The report is uploaded as a SARIF artifact.
+
+The only allowlisted values are the synthetic demo/test strings in the repository; screenshots are excluded as binary files. Run the same scan locally:
+
+```bash
+gitleaks detect --source . --config .gitleaks.toml --redact --verbose
+```
+
+Enable GitHub **secret scanning** and **push protection** in the repository settings as an additional layer. The CI scan does not replace repository-level scanning.
 
 ## Architecture
 
@@ -511,9 +526,10 @@ node --test tests/*.test.mjs
 
 Current status:
 
-- **14/14 parser and export tests pass** under Node 22, including single-file mode, multi-file merging, resource CSV export and visible-column export subsets.
-- **Repository verification passes**: required files, no forbidden storage/network/HTML-injection APIs, CSP present, Compose hardening and MIT license.
+- **15/15 parser and export tests pass** under Node 22, including single-file mode, multi-file merging, resource CSV export, visible-column export subsets, generic secret-key redaction and content-free JSON parse errors.
+- **Repository verification passes**: required files, no forbidden storage/network/HTML-injection APIs, CSP present, Compose hardening, MIT license and CI secret-scan configuration.
 - **Server smoke test passes**: static shell, JS, CSP, `no-store`, content type, 404, path-traversal rejection and POST rejection.
+- **Gitleaks secret scan passes** over the working tree and full git history; only synthetic demo/test values are allowlisted.
 - **Browser smoke test passes** with Chromium/Playwright: demo import, file-based import, `.bup` rejection, single-file ACL mode, resource table, resource CSV export, resource detail, ACL service columns, ACL rule detail panel, responsive column defaults, column toggles, secret redaction, ACL filters, CSV download, schema drift, empty browser storage and no external requests.
 - **Docker build is covered by CI**; the local development environment used here has no Docker daemon.
 

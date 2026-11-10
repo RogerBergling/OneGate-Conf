@@ -1,3 +1,9 @@
+const SENSITIVE_KEY_SUFFIX = /(password|passwd|pwd|secret|token|apikey|privatekey|accesstoken|passphrase)$/i;
+
+export function isSensitiveKeyName(key) {
+  return SENSITIVE_KEY_SUFFIX.test(String(key ?? ''));
+}
+
 export class SecretVault {
   constructor() {
     this.values = new Map();

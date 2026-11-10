@@ -1,4 +1,5 @@
 import { parseFile } from './parse.js';
+import { isSecretMarker } from './secrets.js';
 
 function makeResource(name) {
   return {
@@ -67,6 +68,17 @@ function mergeResourceList(profile, attributes, fileName, warnings) {
   profile.resourceList = attributes;
 }
 
+function cleanExtra(value) {
+  if (Array.isArray(value)) return value.map(cleanExtra);
+  if (isSecretMarker(value)) return value.empty ? '[redacted: empty]' : '[redacted]';
+  if (value && typeof value === 'object') {
+    const output = {};
+    for (const [key, child] of Object.entries(value)) output[key] = cleanExtra(child);
+    return output;
+  }
+  return value;
+}
+
 function normalizeAclRecord(rule, context, profile, vhMap) {
   const common = new Set([
     'group',
@@ -131,7 +143,7 @@ function normalizeAclRecord(rule, context, profile, vhMap) {
     disabled: rule.disabled ?? null,
     behaviorMetrics: rule.behaviormetry ?? rule.behaviorMetrics ?? '',
     time: rule.time ?? null,
-    extra,
+    extra: cleanExtra(extra),
   };
 }
 

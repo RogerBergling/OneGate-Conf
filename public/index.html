@@ -256,6 +256,8 @@ Browser File API ──► Web Worker ──► parser ──► comparison
               <li>No upload endpoint; the static server has no write path.</li>
               <li>No browser storage for configuration data.</li>
               <li>Classified secret values never reach the page, exports or logs.</li>
+              <li>Password, secret, token and key-name suffix matching also covers nested resource and ACL fields.</li>
+              <li>JSON parse errors never echo configuration content, and the worker clears its raw secret vault after parsing.</li>
               <li>Configuration values are rendered as text, never as HTML.</li>
               <li>No third-party scripts, fonts, analytics or telemetry.</li>
               <li>Exports are generated in the browser with a Blob.</li>
