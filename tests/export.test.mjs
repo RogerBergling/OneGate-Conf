@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { ACL_COLUMNS, flattenAclRecord, toCsv, toHtml, toJson } from '../public/assets/js/export.js';
+import { ACL_COLUMNS, flattenAclRecord, toCsv, toHtml, toJson, toResourceCsv } from '../public/assets/js/export.js';
 
 const RECORD = {
   environmentId: 1,
@@ -66,6 +66,42 @@ test('HTML export escapes untrusted values and contains no script', () => {
   assert.match(html, /&lt;script&gt;alert\(1\)&lt;\/script&gt;/);
   assert.match(html, /&amp;/);
   assert.match(html, /Generated/);
+});
+
+test('resource CSV exports every resource row', () => {
+  const resources = [
+    {
+      name: 'portal',
+      vhName: 'Portal',
+      type: 'https',
+      addresses: ['192.0.2.10'],
+      ports: ['443'],
+      counts: { aclLegacy: 1, aclDetailed: 1, aclTotal: 2, menu: 1, cacheControl: 1 },
+      status: 'different',
+      diffCount: 2,
+      presentIn: [1, 2],
+    },
+    {
+      name: '=cmd',
+      vhName: 'API',
+      type: 'https',
+      addresses: ['192.0.2.20'],
+      ports: ['8443'],
+      counts: { aclLegacy: 0, aclDetailed: 0, aclTotal: 0, menu: 0, cacheControl: 0 },
+      status: 'missing',
+      diffCount: 5,
+      presentIn: [1],
+    },
+  ];
+  const environments = [{ id: 1, name: 'Production' }, { id: 2, name: 'QA' }];
+  const csv = toResourceCsv(resources, environments);
+  assert.match(csv, /Resource,Virtual host,Type,Addresses,Ports/);
+  assert.match(csv, /portal,Portal,https,192\.0\.2\.10,443/);
+  assert.match(csv, /Different,2,Production; QA/);
+  assert.match(csv, /'=cmd/);
+
+  const single = toResourceCsv([{ ...resources[0], status: 'same' }], [{ id: 1, name: 'Only' }]);
+  assert.match(single, /Loaded/);
 });
 
 test('ACL exports can use a visible-column subset', () => {

@@ -73,6 +73,58 @@ export function toCsv(records, columns = ACL_COLUMNS) {
   return `${rows.join('\r\n')}\r\n`;
 }
 
+function resourceStatusLabel(resource, environments) {
+  if (environments.length === 1 && resource.status === 'same') return 'Loaded';
+  return {
+    same: 'Same',
+    different: 'Different',
+    missing: 'Missing',
+  }[resource.status] || resource.status;
+}
+
+export function toResourceCsv(resources, environments = []) {
+  const headers = [
+    'Resource',
+    'Virtual host',
+    'Type',
+    'Addresses',
+    'Ports',
+    'ACL table rules',
+    'Detailed ACL rules',
+    'ACL rules total',
+    'Menu entries',
+    'Cache entries',
+    'Status',
+    'Differences',
+    'Present in',
+  ];
+  const rows = [headers.map((header) => csvEscape(header)).join(',')];
+  const environmentNames = new Map(environments.map((environment) => [environment.id, environment.name]));
+
+  for (const resource of resources) {
+    const presentIn = (resource.presentIn || [])
+      .map((id) => environmentNames.get(id) || `Environment ${id}`)
+      .join('; ');
+    rows.push([
+      resource.name,
+      resource.vhName,
+      resource.type,
+      (resource.addresses || []).join('; '),
+      (resource.ports || []).join('; '),
+      resource.counts?.aclLegacy || 0,
+      resource.counts?.aclDetailed || 0,
+      resource.counts?.aclTotal || 0,
+      resource.counts?.menu || 0,
+      resource.counts?.cacheControl || 0,
+      resourceStatusLabel(resource, environments),
+      resource.diffCount || 0,
+      presentIn,
+    ].map((value) => csvEscape(value)).join(','));
+  }
+
+  return `${rows.join('\r\n')}\r\n`;
+}
+
 export function toJson(records, context = {}, columns = ACL_COLUMNS) {
   return JSON.stringify(
     {

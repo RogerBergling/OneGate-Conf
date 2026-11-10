@@ -7,6 +7,7 @@ import {
   toCsv,
   toHtml,
   toJson,
+  toResourceCsv,
 } from './export.js';
 
 const RESOURCE_PAGE_SIZE = 100;
@@ -61,6 +62,7 @@ const dom = {
   resourceStatus: document.getElementById('resource-status'),
   resourceVh: document.getElementById('resource-vh'),
   resourceCount: document.getElementById('resource-count'),
+  exportResources: document.getElementById('export-resources'),
   resourceTable: document.getElementById('resource-table'),
   resourcePagination: document.getElementById('resource-pagination'),
   resourceDetail: document.getElementById('resource-detail'),
@@ -1090,6 +1092,13 @@ function currentAclFilters(scope) {
   };
 }
 
+function exportResourcesCsv() {
+  if (!state.result) return;
+  const csv = toResourceCsv(state.result.resources, state.result.environments);
+  downloadText(`onegate-resources-${timestampSlug()}.csv`, csv, 'text/csv;charset=utf-8');
+  toast(`Exported ${formatNumber(state.result.resources.length)} resources.`, 'ok');
+}
+
 function exportAcl(scope) {
   if (!state.result) return;
   const records = scope === 'all' ? state.result.aclRules : filteredAclRecords();
@@ -1324,6 +1333,7 @@ function bindEvents() {
     state.aclVisibleColumns = screenDefaultColumns();
     renderAcl();
   });
+  dom.exportResources.addEventListener('click', exportResourcesCsv);
   dom.exportAll.addEventListener('click', () => exportAcl('all'));
   dom.exportFiltered.addEventListener('click', () => exportAcl('filtered'));
 

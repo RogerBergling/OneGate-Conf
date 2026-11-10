@@ -483,7 +483,7 @@ LICENSE
 
 1. **Import.** Add 1-5 environment cards. Each card has a label and accepts multiple files by picker or drag-and-drop. Leave a card empty for single-file ACL browsing and export. The screen explains that files stay in the browser and that secrets are redacted.
 2. **Summary.** After parsing, show environments, resources, differences, missing resources, ACL rule count and schema drift.
-3. **Resources.** Search and filter by status or virtual host. Each row shows type, addresses, ports, ACL count, menu count, status and difference count.
+3. **Resources.** Search and filter by status or virtual host. Each row shows type, addresses, ports, ACL count, menu count, status and difference count. **Export all resources (CSV)** exports every resource row, not just the current page or filtered view.
 4. **Resource detail.** Click a resource to compare every field across environments. Only differences show by default; **Show all fields** reveals the full compared profile. Secret values appear as `[redacted]`.
 5. **ACL rules.** View every rule from every resource, from both ACL sources. Filter by environment, resource, virtual host, source, auth method, encryption, deny and free text.
 6. **Export.** Export all ACL rules or only the filtered view as CSV, HTML or JSON. Exports are generated in the browser with a Blob.
@@ -511,13 +511,13 @@ node --test tests/*.test.mjs
 
 Current status:
 
-- **13/13 parser and export tests pass** under Node 22, including single-file mode, multi-file merging and visible-column export subsets.
+- **14/14 parser and export tests pass** under Node 22, including single-file mode, multi-file merging, resource CSV export and visible-column export subsets.
 - **Repository verification passes**: required files, no forbidden storage/network/HTML-injection APIs, CSP present, Compose hardening and MIT license.
 - **Server smoke test passes**: static shell, JS, CSP, `no-store`, content type, 404, path-traversal rejection and POST rejection.
-- **Browser smoke test passes** with Chromium/Playwright: demo import, file-based import, `.bup` rejection, single-file ACL mode, resource table, resource detail, ACL service columns, ACL rule detail panel, responsive column defaults, column toggles, secret redaction, ACL filters, CSV download, schema drift, empty browser storage and no external requests.
+- **Browser smoke test passes** with Chromium/Playwright: demo import, file-based import, `.bup` rejection, single-file ACL mode, resource table, resource CSV export, resource detail, ACL service columns, ACL rule detail panel, responsive column defaults, column toggles, secret redaction, ACL filters, CSV download, schema drift, empty browser storage and no external requests.
 - **Docker build is covered by CI**; the local development environment used here has no Docker daemon.
 
-The test suite covers section splitting, comments, the `<HEADER>` marker, properties, tables, JSON, secret markers, resource profiles, VH assignment, single-file mode, multi-file merging per environment, both ACL sources, missing/different resources, schema drift, empty-versus-absent comparison, the bundled demo, CSV formula-injection protection, HTML escaping and JSON export.
+The test suite covers section splitting, comments, the `<HEADER>` marker, properties, tables, JSON, secret markers, resource profiles, VH assignment, single-file mode, multi-file merging per environment, both ACL sources, missing/different resources, schema drift, empty-versus-absent comparison, the bundled demo, resource CSV export, CSV formula-injection protection, HTML escaping and JSON export.
 
 Still to add:
 
