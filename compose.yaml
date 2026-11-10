@@ -1,0 +1,31 @@
+# OneGate Config Compare
+#
+# Local-first: the container serves static files only. Configuration files are
+# read by the browser and parsed in a Web Worker; nothing is uploaded or stored.
+#
+#   docker compose up -d
+#   open http://localhost:8008
+#
+# To build your own image with the same tag:
+#   docker build -t ghcr.io/rogerbergling/onegate-conf:latest .
+#   docker compose up -d
+#
+# The port is bound to 127.0.0.1 by default. If you expose it beyond localhost,
+# put it behind HTTPS and an authenticating reverse proxy.
+services:
+  onegate-conf:
+    image: ghcr.io/rogerbergling/onegate-conf:latest
+    container_name: onegate-conf
+    ports:
+      - "127.0.0.1:8008:8008"
+    environment:
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTHONUNBUFFERED: "1"
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=16m
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped

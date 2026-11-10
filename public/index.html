@@ -1,0 +1,266 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark light">
+  <meta name="description" content="Compare OneGate resources and ACL rules locally in your browser.">
+  <title>OneGate Config Compare</title>
+  <link rel="stylesheet" href="/assets/css/app.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true">OG</span>
+      <div>
+        <strong>OneGate Config Compare</strong>
+        <span class="brand-sub">Resource &amp; ACL workbench</span>
+      </div>
+    </div>
+    <div class="topbar-actions">
+      <span class="privacy-badge" title="Files are read in this tab and never uploaded">Local only</span>
+      <button id="theme-toggle" class="icon-button" type="button" aria-label="Toggle light and dark theme">Theme</button>
+      <button id="forget-button" class="button ghost" type="button" hidden>Forget</button>
+    </div>
+  </header>
+
+  <main id="app">
+    <section id="import-view" aria-labelledby="import-title">
+      <div class="hero">
+        <div>
+          <p class="eyebrow">Local-first configuration review</p>
+          <h1 id="import-title">Compare resources and ACL rules across OneGate environments.</h1>
+          <p class="hero-copy">Import 2–5 config exports. The files are read in your browser, parsed in a worker, and reduced to a redacted comparison. Nothing is uploaded or saved.</p>
+        </div>
+        <div class="hero-panel">
+          <div class="hero-panel-row"><span>Files</span><strong>Stay in this tab</strong></div>
+          <div class="hero-panel-row"><span>Secrets</span><strong>Redacted</strong></div>
+          <div class="hero-panel-row"><span>Server storage</span><strong>None</strong></div>
+          <div class="hero-panel-row"><span>Exports</span><strong>Browser-generated</strong></div>
+        </div>
+      </div>
+
+      <div class="section-heading">
+        <div>
+          <h2>Environments</h2>
+          <p>Give each environment a name and add its config file or files. File names do not matter.</p>
+        </div>
+        <div class="heading-actions">
+          <button id="add-environment" class="button ghost" type="button">Add environment</button>
+        </div>
+      </div>
+
+      <div id="environment-cards" class="environment-grid"></div>
+
+      <div class="import-actions">
+        <button id="compare-button" class="button primary" type="button">Compare environments</button>
+        <button id="demo-button" class="button ghost" type="button">Load demo</button>
+        <button id="clear-import" class="button ghost" type="button">Clear</button>
+        <label class="inline-check"><input id="empty-as-absent" type="checkbox" checked> Treat empty and absent as equal</label>
+        <span id="import-status" class="status-text" role="status" aria-live="polite"></span>
+      </div>
+
+      <details class="security-note">
+        <summary>How this application handles your data</summary>
+        <div class="security-note-body">
+          <p><strong>No upload.</strong> The file picker and drag-and-drop use the browser File API. The server only serves static HTML, CSS and JavaScript; there is no upload endpoint, database or write path.</p>
+          <p><strong>In memory only.</strong> Parsed configuration lives in a Web Worker in this tab. There is no <code>localStorage</code>, <code>sessionStorage</code>, IndexedDB or cookie storage. Refreshing or closing the tab clears everything.</p>
+          <p><strong>Secrets are reduced before rendering.</strong> Passwords, keys, tokens and client secrets are compared in the worker and replaced with an opaque marker. Secret values are never put in the page, an export or a log.</p>
+          <p><strong>What this cannot protect against.</strong> The browser and device are trusted endpoints. Developer tools or a malicious extension can inspect page memory while files are loaded. Non-secret configuration is still sensitive, and JavaScript memory cannot be guaranteed to be zeroized.</p>
+        </div>
+      </details>
+    </section>
+
+    <section id="workspace" hidden aria-label="Comparison workspace">
+      <div id="summary" class="summary-grid"></div>
+
+      <nav class="tabs" aria-label="Workspace sections">
+        <button class="tab" type="button" data-view="resources">Resources</button>
+        <button class="tab" type="button" data-view="acl">ACL rules</button>
+        <button class="tab" type="button" data-view="schema">Schema drift</button>
+        <button class="tab" type="button" data-view="security">Security &amp; privacy</button>
+      </nav>
+
+      <section id="resources-view" class="view" aria-labelledby="resources-title">
+        <div class="section-heading">
+          <div>
+            <h2 id="resources-title">Resources</h2>
+            <p>Resource profiles are assembled by name from resource settings, host entries, menus, cache rules and both ACL sources.</p>
+          </div>
+        </div>
+
+        <div class="toolbar">
+          <label class="field compact">
+            <span>Search</span>
+            <input id="resource-search" type="search" placeholder="Resource, virtual host, type">
+          </label>
+          <label class="field compact">
+            <span>Status</span>
+            <select id="resource-status">
+              <option value="all">All statuses</option>
+              <option value="different">Different</option>
+              <option value="missing">Missing in an environment</option>
+              <option value="same">Same</option>
+            </select>
+          </label>
+          <label class="field compact">
+            <span>Virtual host</span>
+            <select id="resource-vh"><option value="all">All virtual hosts</option></select>
+          </label>
+          <label class="inline-check"><input id="empty-as-absent-toggle" type="checkbox" checked> Empty = absent</label>
+          <span class="badge accent" title="The supplied configs key resources by name; number mode is deferred">Key: name</span>
+          <span id="resource-count" class="status-text"></span>
+        </div>
+
+        <div class="workspace-split">
+          <div class="table-card">
+            <div id="resource-table" class="table-wrap"></div>
+            <div id="resource-pagination" class="pagination"></div>
+          </div>
+          <aside id="resource-detail" class="detail-panel" hidden aria-label="Resource detail"></aside>
+        </div>
+      </section>
+
+      <section id="acl-view" class="view" aria-labelledby="acl-title" hidden>
+        <div class="section-heading">
+          <div>
+            <h2 id="acl-title">ACL rules</h2>
+            <p>All ACL rules from every resource, from both the ACL table and the detailed access-control list. Filter the view, then export everything or only the filtered rules.</p>
+          </div>
+        </div>
+
+        <div class="toolbar acl-toolbar">
+          <label class="field compact wide">
+            <span>Search</span>
+            <input id="acl-search" type="search" placeholder="Resource, group, auth, path, IP, service">
+          </label>
+          <label class="field compact">
+            <span>Environment</span>
+            <select id="acl-environment"><option value="all">All environments</option></select>
+          </label>
+          <label class="field compact">
+            <span>Resource</span>
+            <select id="acl-resource"><option value="all">All resources</option></select>
+          </label>
+          <label class="field compact">
+            <span>Virtual host</span>
+            <select id="acl-vh"><option value="all">All virtual hosts</option></select>
+          </label>
+          <label class="field compact">
+            <span>Source</span>
+            <select id="acl-source">
+              <option value="all">Both sources</option>
+              <option value="ACL">ACL table</option>
+              <option value="ACCESS_CONTROL_LIST">Access control list</option>
+            </select>
+          </label>
+          <label class="field compact">
+            <span>Auth method</span>
+            <select id="acl-auth"><option value="all">All methods</option></select>
+          </label>
+          <label class="field compact">
+            <span>Encryption</span>
+            <select id="acl-encryption"><option value="all">All levels</option></select>
+          </label>
+          <label class="field compact">
+            <span>Deny</span>
+            <select id="acl-deny">
+              <option value="all">All</option>
+              <option value="yes">Deny</option>
+              <option value="no">Allow</option>
+            </select>
+          </label>
+          <button id="acl-clear" class="button ghost" type="button">Clear filters</button>
+        </div>
+
+        <div class="acl-actions">
+          <span id="acl-count" class="status-text"></span>
+          <div class="export-controls">
+            <label class="field compact">
+              <span>Format</span>
+              <select id="export-format">
+                <option value="csv">CSV</option>
+                <option value="html">HTML</option>
+                <option value="json">JSON</option>
+              </select>
+            </label>
+            <button id="export-all" class="button primary" type="button">Export all ACL rules</button>
+            <button id="export-filtered" class="button ghost" type="button">Export filtered</button>
+          </div>
+        </div>
+
+        <div class="table-card">
+          <div id="acl-table" class="table-wrap acl-table-wrap"></div>
+          <div id="acl-pagination" class="pagination"></div>
+        </div>
+      </section>
+
+      <section id="schema-view" class="view" aria-labelledby="schema-title" hidden>
+        <div class="section-heading">
+          <div>
+            <h2 id="schema-title">Schema drift</h2>
+            <p>Sections present in one config but not another are shown separately from resource differences. This is expected when environments run different OneGate versions.</p>
+          </div>
+        </div>
+        <div id="schema-content"></div>
+      </section>
+
+      <section id="security-view" class="view" aria-labelledby="security-title" hidden>
+        <div class="section-heading">
+          <div>
+            <h2 id="security-title">Security &amp; privacy</h2>
+            <p>The application is intentionally serverless for configuration data.</p>
+          </div>
+        </div>
+        <div class="security-page">
+          <div class="security-card">
+            <h3>Data flow</h3>
+            <pre class="flow-diagram">File picker / drop
+      │
+      ▼
+Browser File API ──► Web Worker ──► parser ──► comparison
+                                      │
+                                      ├── secrets compared in memory
+                                      └── redacted result
+                                                │
+                                                ▼
+                                          DOM / export</pre>
+          </div>
+          <div class="security-card">
+            <h3>Guarantees</h3>
+            <ul>
+              <li>No upload endpoint; the static server has no write path.</li>
+              <li>No browser storage for configuration data.</li>
+              <li>Classified secret values never reach the page, exports or logs.</li>
+              <li>Configuration values are rendered as text, never as HTML.</li>
+              <li>No third-party scripts, fonts, analytics or telemetry.</li>
+              <li>Exports are generated in the browser with a Blob.</li>
+            </ul>
+          </div>
+          <div class="security-card">
+            <h3>Limits</h3>
+            <ul>
+              <li>The browser and device are trusted endpoints; developer tools or extensions can inspect memory.</li>
+              <li>JavaScript memory cannot be reliably zeroized.</li>
+              <li>Secret detection is not omniscient; the redaction review exists for that reason.</li>
+              <li>Non-secret configuration, group DNs, internal IPs and resource names are still sensitive.</li>
+              <li>If exposed beyond localhost, use HTTPS and reverse-proxy authentication.</li>
+            </ul>
+          </div>
+          <div class="security-card">
+            <h3>Exports</h3>
+            <p>ACL exports contain resource names, virtual hosts, group DNs, IP addresses and rule metadata. They contain no secret values, but they are still sensitive infrastructure documents. Store and share them accordingly.</p>
+          </div>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <span>In-memory only · no upload · no server storage</span>
+    <span>OneGate Config Compare</span>
+  </footer>
+
+  <script type="module" src="/assets/js/app.js"></script>
+</body>
+</html>

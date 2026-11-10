@@ -1,0 +1,14 @@
+.git
+.github
+docs
+fixtures
+local-configs
+scripts
+tests
+README.md
+LICENSE
+*.log
+*.sqlite
+*.db
+.env
+.env.*
