@@ -7,6 +7,8 @@ const RECORD = {
   environmentId: 1,
   environmentName: 'Production',
   resource: 'portal',
+  localService: '/',
+  resourceType: 'web',
   vhName: 'Portal',
   source: 'ACCESS_CONTROL_LIST',
   ruleIndex: 1,
@@ -27,6 +29,8 @@ test('flattenAclRecord keeps fields and sanitizes extra secrets', () => {
   const flat = flattenAclRecord(RECORD);
   assert.equal(flat.resource, 'portal');
   assert.equal(flat.environmentName, 'Production');
+  assert.equal(flat.localService, '/');
+  assert.equal(flat.resourceType, 'web');
   assert.equal(flat.deny, 'false');
   assert.equal(flat.extra.includes('not-for-export'), false);
   assert.equal(flat.extra.includes('[redacted]'), true);
@@ -44,7 +48,7 @@ test('CSV export has a header, all records, and formula-injection protection', (
     extra: {},
   };
   const csv = toCsv([danger, RECORD]);
-  assert.match(csv, /Environment,Resource,Virtual host,Source/);
+  assert.match(csv, /Environment,Resource,Service,Resource type,Virtual host,Source/);
   assert.match(csv, /'=cmd/);
   assert.match(csv, /'\+SUM/);
   assert.match(csv, /'-1/);

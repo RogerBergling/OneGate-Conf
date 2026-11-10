@@ -5,6 +5,8 @@ const SECRET_KEY_PATTERN = /(^|_)(password|passwd|pwd|secret|token|apikey|privat
 export const ACL_COLUMNS = [
   { key: 'environmentName', label: 'Environment' },
   { key: 'resource', label: 'Resource' },
+  { key: 'localService', label: 'Service' },
+  { key: 'resourceType', label: 'Resource type' },
   { key: 'vhName', label: 'Virtual host' },
   { key: 'source', label: 'Source' },
   { key: 'ruleIndex', label: 'Rule #' },

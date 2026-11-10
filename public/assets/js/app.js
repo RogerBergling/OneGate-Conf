@@ -30,10 +30,12 @@ const state = {
   aclEnvironment: 'all',
   aclResource: 'all',
   aclVh: 'all',
+  aclService: 'all',
   aclSource: 'all',
   aclAuth: 'all',
   aclEncryption: 'all',
   aclDeny: 'all',
+  selectedAclId: null,
   aclFormat: 'csv',
   emptyAsAbsent: true,
 };
@@ -64,6 +66,7 @@ const dom = {
   aclEnvironment: document.getElementById('acl-environment'),
   aclResource: document.getElementById('acl-resource'),
   aclVh: document.getElementById('acl-vh'),
+  aclService: document.getElementById('acl-service'),
   aclSource: document.getElementById('acl-source'),
   aclAuth: document.getElementById('acl-auth'),
   aclEncryption: document.getElementById('acl-encryption'),
@@ -75,6 +78,8 @@ const dom = {
   exportFiltered: document.getElementById('export-filtered'),
   aclTable: document.getElementById('acl-table'),
   aclPagination: document.getElementById('acl-pagination'),
+  aclSplit: document.getElementById('acl-split'),
+  aclDetail: document.getElementById('acl-detail'),
   schemaContent: document.getElementById('schema-content'),
   tabs: [...document.querySelectorAll('.tab')],
   views: {
@@ -726,6 +731,12 @@ function renderAclFilterOptions() {
     'All virtual hosts',
     state.aclVh,
   );
+  state.aclService = setSelectOptions(
+    dom.aclService,
+    [...new Set(records.map((record) => record.localService))].filter(Boolean).sort().map((value) => ({ label: value, value })),
+    'All services',
+    state.aclService,
+  );
   state.aclAuth = setSelectOptions(
     dom.aclAuth,
     [...new Set(records.map((record) => record.authMethod))].filter(Boolean).sort().map((value) => ({ label: value, value })),
@@ -746,6 +757,8 @@ function aclHaystack(record) {
   return [
     record.environmentName,
     record.resource,
+    record.localService,
+    record.resourceType,
     record.vhName,
     record.group,
     record.authMethod,
@@ -763,6 +776,7 @@ function filteredAclRecords() {
     if (state.aclEnvironment !== 'all' && String(record.environmentId) !== state.aclEnvironment) return false;
     if (state.aclResource !== 'all' && record.resource !== state.aclResource) return false;
     if (state.aclVh !== 'all' && record.vhName !== state.aclVh) return false;
+    if (state.aclService !== 'all' && record.localService !== state.aclService) return false;
     if (state.aclSource !== 'all' && record.source !== state.aclSource) return false;
     if (state.aclAuth !== 'all' && record.authMethod !== state.aclAuth) return false;
     if (state.aclEncryption !== 'all' && record.encryption !== state.aclEncryption) return false;
@@ -809,7 +823,13 @@ function renderAcl() {
     const tbody = el('tbody');
 
     for (const record of pageItems) {
-      const tr = el('tr');
+      const selected = state.selectedAclId === record.id;
+      const tr = el('tr', {
+        className: `acl-row${selected ? ' is-selected' : ''}`,
+        tabIndex: 0,
+        role: 'button',
+        ariaLabel: `Open ACL detail for ${record.resource} rule ${record.ruleIndex}`,
+      });
       for (const column of ACL_COLUMNS) {
         let value;
         if (column.key === 'extra') {
@@ -825,10 +845,33 @@ function renderAcl() {
         });
         if (column.key === 'source') {
           cell.textContent = '';
-          cell.append(badge(record.source === 'ACL' ? 'ACL table' : 'Detailed', record.source === 'ACL' ? 'accent' : 'violet'));
+          const sourceButton = el('button', {
+            className: `badge ${record.source === 'ACL' ? 'accent' : 'violet'}`,
+            type: 'button',
+            text: record.source === 'ACL' ? 'ACL table' : 'Detailed',
+            ariaLabel: `Open details for ${record.resource} rule ${record.ruleIndex}`,
+          });
+          sourceButton.addEventListener('click', (event) => {
+            event.stopPropagation();
+            state.selectedAclId = record.id;
+            renderAcl();
+          });
+          cell.append(sourceButton);
         }
         tr.append(cell);
       }
+
+      const openDetail = () => {
+        state.selectedAclId = record.id;
+        renderAcl();
+      };
+      tr.addEventListener('click', openDetail);
+      tr.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          openDetail();
+        }
+      });
       tbody.append(tr);
     }
     table.append(thead, tbody);
@@ -839,6 +882,107 @@ function renderAcl() {
     state.aclPage = page;
     renderAcl();
   });
+  renderAclDetail();
+}
+
+function aclSourceLabel(source) {
+  return source === 'ACL' ? 'ACL table' : 'Access control list';
+}
+
+function renderAclDetail() {
+  const record = state.result.aclRules.find((item) => item.id === state.selectedAclId);
+  clear(dom.aclDetail);
+  if (!record) {
+    dom.aclDetail.hidden = true;
+    dom.aclSplit.classList.remove('has-detail');
+    return;
+  }
+
+  dom.aclDetail.hidden = false;
+  dom.aclSplit.classList.add('has-detail');
+
+  const close = el('button', { className: 'icon-button', type: 'button', text: 'Close', ariaLabel: 'Close ACL rule detail' });
+  close.addEventListener('click', () => {
+    state.selectedAclId = null;
+    renderAcl();
+  });
+
+  const fields = [
+    ['Environment', record.environmentName],
+    ['Resource', record.resource],
+    ['Local service', record.localService],
+    ['Resource type', record.resourceType],
+    ['Virtual host', record.vhName],
+    ['Source', aclSourceLabel(record.source)],
+    ['Rule #', record.ruleIndex],
+    ['Entry #', record.entryIndex],
+    ['Group', record.group],
+    ['Auth method', record.authMethod],
+    ['Encryption', record.encryption],
+    ['Path', record.path],
+    ['SSO', record.sso],
+    ['IP address', record.ipAddress],
+    ['Deny', record.deny],
+    ['Disabled', record.disabled],
+    ['Behaviour metrics', record.behaviorMetrics],
+    ['Time', record.time],
+  ];
+
+  const table = el('table', { className: 'detail-table' });
+  const thead = el('thead');
+  const header = el('tr', {}, el('th', { text: 'Field' }), el('th', { text: 'Value' }));
+  thead.append(header);
+  const tbody = el('tbody');
+  for (const [label, value] of fields) {
+    const formatted = formatAclCell(value);
+    tbody.append(
+      el('tr', {},
+        el('td', { text: label }),
+        el('td', { className: 'mono', text: formatted, title: formatted }),
+      ),
+    );
+  }
+  table.append(thead, tbody);
+
+  dom.aclDetail.append(
+    el('div', { className: 'detail-header' },
+      el('div', {},
+        el('h3', { text: `${record.resource}${record.localService ? ` · ${record.localService}` : ''}` }),
+        el('p', { text: `${record.environmentName} · ${aclSourceLabel(record.source)} · rule ${record.ruleIndex}` }),
+      ),
+      close,
+    ),
+    el('div', { className: 'detail-body' },
+      el('div', { className: 'detail-section' },
+        el('h4', { text: 'Rule fields' }),
+        table,
+      ),
+    ),
+  );
+
+  const extraEntries = Object.entries(record.extra || {});
+  if (extraEntries.length) {
+    const extraTable = el('table', { className: 'detail-table' });
+    const extraHead = el('thead');
+    extraHead.append(el('tr', {}, el('th', { text: 'Additional field' }), el('th', { text: 'Value' })));
+    const extraBody = el('tbody');
+    for (const [key, value] of extraEntries) {
+      const formatted = formatAclCell(value);
+      extraBody.append(
+        el('tr', {},
+          el('td', { className: 'mono', text: key }),
+          el('td', { className: 'mono', text: formatted, title: formatted }),
+        ),
+      );
+    }
+    extraTable.append(extraHead, extraBody);
+    dom.aclDetail.querySelector('.detail-body').append(
+      el('div', { className: 'detail-section' },
+        el('h4', { text: 'Additional fields' }),
+        extraTable,
+      ),
+    );
+  }
 }
 
 function currentAclFilters(scope) {
@@ -847,6 +991,7 @@ function currentAclFilters(scope) {
     environment: state.aclEnvironment === 'all' ? 'All' : dom.aclEnvironment.selectedOptions[0]?.textContent || state.aclEnvironment,
     resource: state.aclResource === 'all' ? 'All' : state.aclResource,
     virtualHost: state.aclVh === 'all' ? 'All' : state.aclVh,
+    service: state.aclService === 'all' ? 'All' : state.aclService,
     source: state.aclSource === 'all' ? 'Both' : state.aclSource,
     authMethod: state.aclAuth === 'all' ? 'All' : state.aclAuth,
     encryption: state.aclEncryption === 'all' ? 'All' : state.aclEncryption,
@@ -1040,6 +1185,7 @@ function bindEvents() {
     [dom.aclEnvironment, 'aclEnvironment'],
     [dom.aclResource, 'aclResource'],
     [dom.aclVh, 'aclVh'],
+    [dom.aclService, 'aclService'],
     [dom.aclSource, 'aclSource'],
     [dom.aclAuth, 'aclAuth'],
     [dom.aclEncryption, 'aclEncryption'],
@@ -1049,6 +1195,7 @@ function bindEvents() {
     element.addEventListener('change', () => {
       state[key] = element.value;
       state.aclPage = 1;
+      state.selectedAclId = null;
       renderAcl();
     });
   }
@@ -1058,10 +1205,12 @@ function bindEvents() {
     state.aclEnvironment = 'all';
     state.aclResource = 'all';
     state.aclVh = 'all';
+    state.aclService = 'all';
     state.aclSource = 'all';
     state.aclAuth = 'all';
     state.aclEncryption = 'all';
     state.aclDeny = 'all';
+    state.selectedAclId = null;
     state.aclPage = 1;
     dom.aclSearch.value = '';
     renderAcl();

@@ -90,9 +90,9 @@ function normalizeAclRecord(rule, context, profile, vhMap) {
   }
 
   const entry = context.entry || {};
-  if (entry.local_service !== undefined) extra.localService = entry.local_service;
-  if (entry.resource_type !== undefined) extra.resourceType = entry.resource_type;
-  if (context.entryIndex !== undefined) extra.entryIndex = context.entryIndex;
+  const localService = entry.local_service ?? null;
+  const resourceType = entry.resource_type ?? null;
+  const entryIndex = context.entryIndex ?? null;
 
   let vhId = profile.vhId;
   let vhName = profile.vhName;
@@ -115,7 +115,10 @@ function normalizeAclRecord(rule, context, profile, vhMap) {
   return {
     source: context.source,
     ruleIndex: context.ruleIndex,
+    entryIndex,
     resource: profile.name,
+    localService,
+    resourceType,
     vhId,
     vhName,
     group: rule.group ?? '',

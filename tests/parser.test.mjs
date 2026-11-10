@@ -176,6 +176,8 @@ test('buildEnvironment assembles resource profiles and ACL records', () => {
   assert.equal(portal.counts.aclLegacy, 1);
   assert.equal(portal.counts.aclDetailed, 1);
   assert.equal(portal.counts.aclTotal, 2);
+  assert.equal(portal.aclRules[0].localService, '/');
+  assert.equal(portal.aclRules[0].resourceType, 'web');
   assert.equal(environment.aclRecords.length, 2);
   assert.equal(environment.nodeCount, 0);
   assert.ok(environment.unknownSections.includes('FUTURE_SECTION'));

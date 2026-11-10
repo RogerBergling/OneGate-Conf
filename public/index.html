@@ -130,7 +130,7 @@
         <div class="section-heading">
           <div>
             <h2 id="acl-title">ACL rules</h2>
-            <p>All ACL rules from every resource, from both the ACL table and the detailed access-control list. Filter the view, then export everything or only the filtered rules.</p>
+            <p>All ACL rules from every resource, from both the ACL table and the detailed access-control list. Click a row or its source badge to see the exact service and every rule field. Filter the view, then export everything or only the filtered rules.</p>
           </div>
         </div>
 
@@ -150,6 +150,10 @@
           <label class="field compact">
             <span>Virtual host</span>
             <select id="acl-vh"><option value="all">All virtual hosts</option></select>
+          </label>
+          <label class="field compact">
+            <span>Service</span>
+            <select id="acl-service"><option value="all">All services</option></select>
           </label>
           <label class="field compact">
             <span>Source</span>
@@ -194,9 +198,12 @@
           </div>
         </div>
 
-        <div class="table-card">
-          <div id="acl-table" class="table-wrap acl-table-wrap"></div>
-          <div id="acl-pagination" class="pagination"></div>
+        <div id="acl-split" class="workspace-split">
+          <div class="table-card">
+            <div id="acl-table" class="table-wrap acl-table-wrap"></div>
+            <div id="acl-pagination" class="pagination"></div>
+          </div>
+          <aside id="acl-detail" class="detail-panel" hidden aria-label="ACL rule detail"></aside>
         </div>
       </section>
 
