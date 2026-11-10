@@ -48,7 +48,7 @@ test('CSV export has a header, all records, and formula-injection protection', (
     extra: {},
   };
   const csv = toCsv([danger, RECORD]);
-  assert.match(csv, /Environment,Resource,Service,Resource type,Virtual host,Source/);
+  assert.match(csv, /Environment,Resource,Service,Auth method,Path,IP address/);
   assert.match(csv, /'=cmd/);
   assert.match(csv, /'\+SUM/);
   assert.match(csv, /'-1/);

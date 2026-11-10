@@ -183,9 +183,9 @@ Clicking a row or its **ACL table** / **Detailed** badge opens a rule detail pan
 Proposed normalised record:
 
 ```text
-resource, localService, resourceType, virtualHost, sourceSection, ruleIndex,
-group, authMethod, encryption, path, sso, ipAddress, deny, disabled,
-behaviourMetrics, extra
+resource, localService, authMethod, path, ipAddress, encryption, group,
+virtualHost, sourceSection, ruleIndex, sso, deny, disabled,
+behaviourMetrics, resourceType, extra
 ```
 
 `sourceSection` distinguishes `<ACL>` rows from `<ACCESS_CONTROL_LIST>` rules so the export is traceable. Fields that do not fit the common model are preserved in `extra` rather than dropped.
