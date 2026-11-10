@@ -39,7 +39,7 @@ Requires Python 3.10+ and nothing else:
 python3 start.py
 ```
 
-Open <http://localhost:8008>. Click **Load demo** to try synthetic data, or add your own config files to 2-5 environment cards and click **Compare environments**.
+Open <http://localhost:8008>. Click **Load demo** to try synthetic data, or add your own config files to 1-5 environment cards and click **Open / compare**. A single file is enough for ACL browsing and export; add a second environment to compare resources.
 
 ### Use your own copy
 
@@ -64,6 +64,10 @@ docker compose up -d
 | --- | --- |
 | ![Resource detail](docs/screenshots/resource-detail.png) | ![Schema drift](docs/screenshots/schema-drift.png) |
 
+| Single-file ACL mode |
+| --- |
+| ![Single-file ACL export](docs/screenshots/single-file-acl.png) |
+
 The screenshots use the bundled demo with `example.com` names and TEST-NET addresses.
 
 ## The problem
@@ -78,7 +82,7 @@ OneGate is deployed in several environments — for example production, QA, test
 
 Comparing the files by hand is slow and error-prone. A line-based diff is a poor fit because it cannot tell a meaningful change from reordered resources, formatting changes, or an ignored numeric ID. It also has no concept of secrets, so a careless copy/paste can expose credentials.
 
-The goal is a local-first browser tool that answers, for 2-5 named environments (a single environment can still be loaded for inspection):
+The goal is a local-first browser tool that answers, for 1-5 named environments. A single environment is enough for ACL browsing and export; two or more add comparison:
 
 - What differs, at field level, between the environments?
 - Which virtual hosts, resources, services and settings are missing or extra?
@@ -88,7 +92,8 @@ The goal is a local-first browser tool that answers, for 2-5 named environments 
 
 ## What works now
 
-- Import **2-5 named environments**. Each environment can contain **one or more config files** — for example `config`, `config1`, `config2` — and file names do not matter.
+- Import **1-5 named environments**. Each environment can contain **one or more config files** — for example `config`, `config1`, `config2` — and file names do not matter.
+- Use **one file** for single-file ACL browsing and export, or add more environments to compare resources.
 - Parse the section-based OneGate format: properties, lists, whitespace tables, embedded JSON, comments, empty sections and the `<HEADER>` marker.
 - Assemble a **resource profile by name** from resource settings, host entries, both ACL sources, menu entries, cache rules, e-sign fields and virtual-host assignment.
 - Compare resource profiles across environments and show **same**, **different** and **missing** status with field-level detail.
@@ -111,7 +116,7 @@ The goal is a local-first browser tool that answers, for 2-5 named environments 
 
 | Area | Decision |
 | --- | --- |
-| Environments | 2-5 named environments. A single environment may still be loaded for inspection. |
+| Environments | 1-5 named environments. One is enough for ACL browsing/export; two or more enables resource comparison. |
 | Files per environment | One or more config files. A file can contain a full server config with multiple virtual hosts; the exact file-to-VH relationship is still to be confirmed. |
 | File names | Irrelevant. `config`, `config1` or any other name is accepted; virtual hosts are identified from file content. |
 | Virtual-host mapping | Read from file content. If a file has no internal identifier, the user maps it manually. |
@@ -457,7 +462,7 @@ LICENSE
 
 ## User experience
 
-1. **Import.** Add 2-5 environment cards. Each card has a label and accepts multiple files by picker or drag-and-drop. The screen explains that files stay in the browser and that secrets are redacted.
+1. **Import.** Add 1-5 environment cards. Each card has a label and accepts multiple files by picker or drag-and-drop. Leave a card empty for single-file ACL browsing and export. The screen explains that files stay in the browser and that secrets are redacted.
 2. **Summary.** After parsing, show environments, resources, differences, missing resources, ACL rule count and schema drift.
 3. **Resources.** Search and filter by status or virtual host. Each row shows type, addresses, ports, ACL count, menu count, status and difference count.
 4. **Resource detail.** Click a resource to compare every field across environments. Only differences show by default; **Show all fields** reveals the full compared profile. Secret values appear as `[redacted]`.
@@ -487,13 +492,13 @@ node --test tests/*.test.mjs
 
 Current status:
 
-- **11/11 parser and export tests pass** under Node 22, including multi-file merging per environment.
+- **12/12 parser and export tests pass** under Node 22, including single-file mode and multi-file merging per environment.
 - **Repository verification passes**: required files, no forbidden storage/network/HTML-injection APIs, CSP present, Compose hardening and MIT license.
 - **Server smoke test passes**: static shell, JS, CSP, `no-store`, content type, 404, path-traversal rejection and POST rejection.
-- **Browser smoke test passes** with Chromium/Playwright: demo import, resource table, resource detail, secret redaction, ACL filters, CSV download, schema drift, empty browser storage and no external requests.
+- **Browser smoke test passes** with Chromium/Playwright: demo import, file-based import, single-file ACL mode, resource table, resource detail, secret redaction, ACL filters, CSV download, schema drift, empty browser storage and no external requests.
 - **Docker build is covered by CI**; the local development environment used here has no Docker daemon.
 
-The test suite covers section splitting, comments, the `<HEADER>` marker, properties, tables, JSON, secret markers, resource profiles, VH assignment, multi-file merging per environment, both ACL sources, missing/different resources, schema drift, empty-versus-absent comparison, the bundled demo, CSV formula-injection protection, HTML escaping and JSON export.
+The test suite covers section splitting, comments, the `<HEADER>` marker, properties, tables, JSON, secret markers, resource profiles, VH assignment, single-file mode, multi-file merging per environment, both ACL sources, missing/different resources, schema drift, empty-versus-absent comparison, the bundled demo, CSV formula-injection protection, HTML escaping and JSON export.
 
 Still to add:
 
@@ -555,6 +560,8 @@ The container runs as a non-root user with a read-only root filesystem, no Linux
 - The default branch is `main`.
 - No `.env` file is needed for configuration data. There is no backend secret to configure, and configuration files must never be committed.
 - Keep real exports in `fixtures/private/` or another ignored directory. Only synthetic, anonymised fixtures belong in the repository.
+- The demo and tests contain synthetic secret-like values only (`demo-only-not-a-real-secret`, `demo-control-secret`, `demo-resource-secret`). They are not credentials.
+- No real OneGate exports or customer data are committed; the demo uses `example.com` and TEST-NET addresses.
 - Real exports can contain live credentials. Never commit them or paste them unredacted into chat. Replace every secret value with `REDACTED` and rotate any credential that has been exposed.
 - Run `git-create` in this directory to verify the repository before pushing.
 

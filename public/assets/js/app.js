@@ -146,6 +146,20 @@ function badge(text, kind = '') {
   return el('span', { className: `badge${kind ? ` ${kind}` : ''}`, text });
 }
 
+function resourceStatusPill(status) {
+  if (state.result?.environments.length === 1 && status === 'same') {
+    return statusPill('loaded', 'Loaded');
+  }
+  return statusPill(status);
+}
+
+function rowStatusPill(status) {
+  if (state.result?.environments.length === 1 && status === 'same') {
+    return statusPill('loaded', 'Present');
+  }
+  return statusPill(status);
+}
+
 function setStatus(message, kind = '') {
   dom.importStatus.textContent = message;
   dom.importStatus.className = `status-text${kind ? ` is-${kind}` : ''}`;
@@ -174,7 +188,13 @@ function initWorker() {
       state.result = message.result;
       state.loading = false;
       dom.compareButton.disabled = false;
-      setStatus(`Compared ${formatNumber(message.result.stats.environments)} environments.`, 'ok');
+      const environmentCount = message.result.stats.environments;
+      setStatus(
+        environmentCount === 1
+          ? 'Opened 1 configuration. ACL browsing and export are ready.'
+          : `Compared ${formatNumber(environmentCount)} environments.`,
+        'ok',
+      );
       showWorkspace();
       state.view = 'resources';
       if (location.hash !== '#/resources') location.hash = '#/resources';
@@ -264,6 +284,15 @@ function renderSummary() {
     );
   }
   dom.summary.append(chips);
+
+  if (state.result.environments.length === 1) {
+    dom.summary.append(
+      el('div', { className: 'single-banner' },
+        el('strong', { text: 'Single-file mode' }),
+        el('span', { text: 'ACL browsing and export are active. Add a second environment to compare resources.' }),
+      ),
+    );
+  }
 }
 
 function renderImport() {
@@ -318,7 +347,7 @@ function renderImport() {
     });
 
     const removeButton = el('button', { className: 'button ghost danger', type: 'button', text: 'Remove' });
-    removeButton.disabled = state.environments.length <= 2;
+    removeButton.disabled = state.environments.length <= 1;
     removeButton.addEventListener('click', () => {
       state.environments = state.environments.filter((item) => item.id !== environment.id);
       renderImport();
@@ -380,24 +409,20 @@ function addFiles(environmentId, fileList) {
 
 function compareEnvironments() {
   if (state.loading) return;
-  if (state.environments.length < 2) {
-    setStatus('Add at least two environments.', 'error');
-    return;
-  }
-  const empty = state.environments.find((environment) => environment.files.length === 0);
-  if (empty) {
-    setStatus(`Add at least one config file to "${empty.name || 'an environment'}".`, 'error');
+  const active = state.environments.filter((environment) => environment.files.length > 0);
+  if (!active.length) {
+    setStatus('Add at least one config file.', 'error');
     return;
   }
 
   state.loading = true;
   dom.compareButton.disabled = true;
-  setStatus('Parsing files in the browser…', '');
+  setStatus(active.length === 1 ? 'Opening the configuration in the browser…' : 'Parsing files in the browser…', '');
 
   state.worker.postMessage({
     type: 'analyze',
     emptyAsAbsent: state.emptyAsAbsent,
-    environments: state.environments.map((environment) => ({
+    environments: active.map((environment) => ({
       id: environment.id,
       name: environment.name.trim() || `Environment ${environment.id}`,
       files: environment.files.map((item) => (
@@ -417,7 +442,7 @@ function loadDemo() {
   }));
   state.nextEnvironmentId = state.environments.length + 1;
   renderImport();
-  setStatus('Demo loaded. Click Compare environments.', 'ok');
+  setStatus('Demo loaded. Click Open / compare.', 'ok');
 }
 
 function clearImport() {
@@ -515,7 +540,7 @@ function renderResources() {
         el('td', { className: 'mono', text: (resource.ports || []).join(', ') || '—' }),
         el('td', { className: 'mono', text: formatNumber(resource.counts.aclTotal) }),
         el('td', { className: 'mono', text: formatNumber(resource.counts.menu) }),
-        el('td', {}, statusPill(resource.status)),
+        el('td', {}, resourceStatusPill(resource.status)),
         el('td', { className: 'mono', text: formatNumber(resource.diffCount) }),
       );
       const open = () => {
@@ -594,7 +619,7 @@ function renderResourceDetail() {
     el('div', { className: 'detail-body' },
       el('div', { className: 'detail-section' },
         el('div', { className: 'toolbar' },
-          statusPill(resource.status),
+          resourceStatusPill(resource.status),
           el('label', { className: 'inline-check' }, toggle, 'Show all fields'),
           el('span', { className: 'status-text', text: `${formatNumber(resource.diffCount)} differences` }),
         ),
@@ -605,7 +630,12 @@ function renderResourceDetail() {
   const body = dom.resourceDetail.querySelector('.detail-body');
   const rows = resource.rows.filter((row) => state.detailShowAll || row.status !== 'same');
   if (!rows.length) {
-    body.append(el('div', { className: 'detail-empty', text: 'No differences in this resource. Turn on “Show all fields” to inspect every compared value.' }));
+    body.append(el('div', {
+      className: 'detail-empty',
+      text: state.result.environments.length === 1
+        ? 'Single-file mode: turn on “Show all fields” to inspect every value.'
+        : 'No differences in this resource. Turn on “Show all fields” to inspect every compared value.',
+    }));
   } else {
     const groups = new Map();
     for (const row of rows) {
@@ -631,7 +661,7 @@ function renderResourceDetail() {
         for (const value of row.values) {
           tr.append(el('td', { className: 'mono', text: value, title: value }));
         }
-        tr.append(el('td', {}, statusPill(row.status)));
+        tr.append(el('td', {}, rowStatusPill(row.status)));
         tbody.append(tr);
       }
       table.append(thead, tbody);

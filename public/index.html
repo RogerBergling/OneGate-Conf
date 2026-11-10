@@ -30,7 +30,7 @@
         <div>
           <p class="eyebrow">Local-first configuration review</p>
           <h1 id="import-title">Compare resources and ACL rules across OneGate environments.</h1>
-          <p class="hero-copy">Import 2–5 config exports. The files are read in your browser, parsed in a worker, and reduced to a redacted comparison. Nothing is uploaded or saved.</p>
+          <p class="hero-copy">Import 1–5 config exports. Use one for a single-file ACL browser and export, or two or more to compare resources across environments. Files are read in your browser, parsed in a worker, and reduced to a redacted result. Nothing is uploaded or saved.</p>
         </div>
         <div class="hero-panel">
           <div class="hero-panel-row"><span>Files</span><strong>Stay in this tab</strong></div>
@@ -43,7 +43,7 @@
       <div class="section-heading">
         <div>
           <h2>Environments</h2>
-          <p>Give each environment a name and add its config file or files. File names do not matter.</p>
+          <p>Give each environment a name and add its config file or files. File names do not matter. Leave a card empty to work with one file; the ACL browser and export work in single-file mode too.</p>
         </div>
         <div class="heading-actions">
           <button id="add-environment" class="button ghost" type="button">Add environment</button>
@@ -53,7 +53,7 @@
       <div id="environment-cards" class="environment-grid"></div>
 
       <div class="import-actions">
-        <button id="compare-button" class="button primary" type="button">Compare environments</button>
+        <button id="compare-button" class="button primary" type="button">Open / compare</button>
         <button id="demo-button" class="button ghost" type="button">Load demo</button>
         <button id="clear-import" class="button ghost" type="button">Clear</button>
         <label class="inline-check"><input id="empty-as-absent" type="checkbox" checked> Treat empty and absent as equal</label>

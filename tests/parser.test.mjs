@@ -231,6 +231,22 @@ test('the bundled demo parses, compares and keeps its secret marker redacted', (
   assert.equal(JSON.stringify(result).includes('demo-only-not-a-real-secret'), false);
 });
 
+test('a single environment is enough for ACL browsing and export', () => {
+  const environment = buildEnvironment(
+    { id: 1, name: 'Single file' },
+    DEMO_ENVIRONMENTS[0].files.map((file) => ({ fileName: file.name, text: file.text })),
+    new SecretVault(),
+  );
+  const result = buildComparison([environment], { emptyAsAbsent: true });
+
+  assert.equal(result.stats.environments, 1);
+  assert.equal(result.stats.resources, 3);
+  assert.equal(result.stats.different, 0);
+  assert.equal(result.stats.missing, 0);
+  assert.equal(result.stats.aclRules, 4);
+  assert.equal(result.resources.every((resource) => resource.status === 'same'), true);
+});
+
 test('multiple files per environment merge by resource name', () => {
   const first = `<RESOURCE_LIST>
 {"resourceMap":[{"portal":{"stringAttribs":{"RESOURCE_NAME":"portal","TYPE":"https"}}}]}

@@ -529,6 +529,24 @@ main {
   margin-bottom: 0;
 }
 
+.single-banner {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 11px 14px;
+  border: 1px solid color-mix(in srgb, var(--blue) 40%, var(--line));
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--blue) 7%, var(--panel));
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.single-banner strong {
+  color: var(--blue);
+}
+
 .environment-chip {
   display: flex;
   align-items: center;
@@ -782,6 +800,11 @@ td.nowrap,
 .status-pill.secret {
   border-color: color-mix(in srgb, var(--violet) 45%, var(--line));
   color: var(--violet);
+}
+
+.status-pill.loaded {
+  border-color: color-mix(in srgb, var(--blue) 45%, var(--line));
+  color: var(--blue);
 }
 
 .badge {
