@@ -1012,8 +1012,81 @@ button.badge:hover {
   flex-wrap: wrap;
 }
 
+.column-picker {
+  position: relative;
+}
+
+.column-picker summary {
+  list-style: none;
+  cursor: pointer;
+}
+
+.column-picker summary::-webkit-details-marker {
+  display: none;
+}
+
+.column-picker[open] summary {
+  border-color: color-mix(in srgb, var(--accent) 50%, var(--line));
+}
+
+.column-picker-panel {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  z-index: 30;
+  width: 300px;
+  max-height: min(440px, 70vh);
+  overflow: auto;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel-3);
+  box-shadow: var(--shadow);
+}
+
+.column-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2px 10px;
+}
+
+.column-option {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 5px;
+  border-radius: 6px;
+  color: var(--muted);
+  font-size: 0.78rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.column-option:hover {
+  background: var(--panel-2);
+  color: var(--text);
+}
+
+.column-option input {
+  accent-color: var(--accent);
+}
+
+.column-picker-panel .inline-check {
+  width: 100%;
+  margin-top: 10px;
+  justify-content: flex-start;
+}
+
+.column-picker-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line-soft);
+}
+
 .acl-table-wrap table {
-  min-width: 1850px;
+  min-width: 100%;
 }
 
 .acl-table-wrap th,

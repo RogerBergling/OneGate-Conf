@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { flattenAclRecord, toCsv, toHtml, toJson } from '../public/assets/js/export.js';
+import { ACL_COLUMNS, flattenAclRecord, toCsv, toHtml, toJson } from '../public/assets/js/export.js';
 
 const RECORD = {
   environmentId: 1,
@@ -66,6 +66,16 @@ test('HTML export escapes untrusted values and contains no script', () => {
   assert.match(html, /&lt;script&gt;alert\(1\)&lt;\/script&gt;/);
   assert.match(html, /&amp;/);
   assert.match(html, /Generated/);
+});
+
+test('ACL exports can use a visible-column subset', () => {
+  const columns = ACL_COLUMNS.filter((column) => ['resource', 'authMethod', 'path'].includes(column.key));
+  const csv = toCsv([RECORD], columns);
+  assert.match(csv, /^Resource,Auth method,Path/);
+  const json = JSON.parse(toJson([RECORD], {}, columns));
+  assert.deepEqual(Object.keys(json.rules[0]), ['resource', 'authMethod', 'path']);
+  const html = toHtml([RECORD], {}, columns);
+  assert.match(html, /<th>Resource<\/th><th>Auth method<\/th><th>Path<\/th>/);
 });
 
 test('JSON export is structured and secret-safe', () => {

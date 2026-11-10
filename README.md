@@ -75,9 +75,9 @@ Do not upload, commit or share real configuration files. Use `fixtures/private/`
 | --- | --- |
 | ![Resource detail](docs/screenshots/resource-detail.png) | ![Schema drift](docs/screenshots/schema-drift.png) |
 
-| Single-file ACL mode |
-| --- |
-| ![Single-file ACL export](docs/screenshots/single-file-acl.png) |
+| Single-file ACL mode | ACL column chooser |
+| --- | --- |
+| ![Single-file ACL export](docs/screenshots/single-file-acl.png) | ![ACL column chooser](docs/screenshots/acl-columns.png) |
 
 The screenshots use the bundled demo with `example.com` names and TEST-NET addresses.
 
@@ -111,6 +111,7 @@ The goal is a local-first browser tool that answers, for 1-5 named environments.
 - Show **schema drift** separately when environments do not share the same sections — useful when they run different OneGate versions.
 - Provide a **global ACL view** across every resource and virtual host, from both `<ACL>` and `<ACCESS_CONTROL_LIST>`, with filters for environment, resource, virtual host, service, source, auth method, encryption, deny and free text.
 - Show the **local service** and **resource type** for detailed ACL rules, and open a full rule detail panel from any row or source badge.
+- Adapt the ACL table to the screen width and let the user choose exactly which columns are visible with a checkbox **Columns** picker.
 - **Export all ACL rules**, or only the filtered view, as CSV, HTML or JSON. Exports are generated in the browser.
 - Redact passwords, keys, tokens, `client_secret` and `FORCE_INTERNAL_AUTH_PWD` before rendering.
 - Reject `.bup` backup files with a clear message; extract the plain-text config first.
@@ -179,6 +180,8 @@ The resource view compares these profiles across environments and shows only dif
 The ACL view is a single global table with filters for resource, virtual host, service, group, auth method, encryption, path, IP, deny/disabled and source section. The service and resource-type columns make `mg-local`-style rules readable: each row shows which local service the rule applies to.
 
 Clicking a row or its **ACL table** / **Detailed** badge opens a rule detail panel with every field, including the service, resource type, virtual host, IP address, deny/disabled state, behaviour metrics and any extra fields. The filtered view can be exported as CSV, HTML or JSON.
+
+The table adapts to the screen width. On a narrow screen it starts with the essential columns; wider screens reveal more. The **Columns** checkbox picker lets the user show or hide any column, with **All** and **Screen defaults** actions. An optional **Use visible columns in exports** setting makes CSV/HTML/JSON match the current table; otherwise exports keep every column.
 
 Proposed normalised record:
 
@@ -508,10 +511,10 @@ node --test tests/*.test.mjs
 
 Current status:
 
-- **12/12 parser and export tests pass** under Node 22, including single-file mode and multi-file merging per environment.
+- **13/13 parser and export tests pass** under Node 22, including single-file mode, multi-file merging and visible-column export subsets.
 - **Repository verification passes**: required files, no forbidden storage/network/HTML-injection APIs, CSP present, Compose hardening and MIT license.
 - **Server smoke test passes**: static shell, JS, CSP, `no-store`, content type, 404, path-traversal rejection and POST rejection.
-- **Browser smoke test passes** with Chromium/Playwright: demo import, file-based import, `.bup` rejection, single-file ACL mode, resource table, resource detail, ACL service columns, ACL rule detail panel, secret redaction, ACL filters, CSV download, schema drift, empty browser storage and no external requests.
+- **Browser smoke test passes** with Chromium/Playwright: demo import, file-based import, `.bup` rejection, single-file ACL mode, resource table, resource detail, ACL service columns, ACL rule detail panel, responsive column defaults, column toggles, secret redaction, ACL filters, CSV download, schema drift, empty browser storage and no external requests.
 - **Docker build is covered by CI**; the local development environment used here has no Docker daemon.
 
 The test suite covers section splitting, comments, the `<HEADER>` marker, properties, tables, JSON, secret markers, resource profiles, VH assignment, single-file mode, multi-file merging per environment, both ACL sources, missing/different resources, schema drift, empty-versus-absent comparison, the bundled demo, CSV formula-injection protection, HTML escaping and JSON export.

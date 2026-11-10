@@ -36,6 +36,9 @@ const state = {
   aclEncryption: 'all',
   aclDeny: 'all',
   selectedAclId: null,
+  aclVisibleColumns: new Set(),
+  aclColumnsCustomized: false,
+  exportVisibleColumns: false,
   aclFormat: 'csv',
   emptyAsAbsent: true,
 };
@@ -80,6 +83,12 @@ const dom = {
   aclPagination: document.getElementById('acl-pagination'),
   aclSplit: document.getElementById('acl-split'),
   aclDetail: document.getElementById('acl-detail'),
+  aclColumnPicker: document.getElementById('acl-column-picker'),
+  aclColumnOptions: document.getElementById('acl-column-options'),
+  aclColumnCount: document.getElementById('acl-column-count'),
+  aclColumnsAll: document.getElementById('acl-columns-all'),
+  aclColumnsReset: document.getElementById('acl-columns-reset'),
+  exportVisibleColumns: document.getElementById('export-visible-columns'),
   schemaContent: document.getElementById('schema-content'),
   tabs: [...document.querySelectorAll('.tab')],
   views: {
@@ -193,6 +202,9 @@ function initWorker() {
       state.result = message.result;
       state.loading = false;
       dom.compareButton.disabled = false;
+      if (!state.aclColumnsCustomized) {
+        state.aclVisibleColumns = screenDefaultColumns();
+      }
       const environmentCount = message.result.stats.environments;
       setStatus(
         environmentCount === 1
@@ -477,8 +489,12 @@ function resetApplication() {
   if (state.worker) state.worker.postMessage({ type: 'reset' });
   state.result = null;
   state.selectedResource = null;
+  state.selectedAclId = null;
   state.resourcePage = 1;
   state.aclPage = 1;
+  state.aclVisibleColumns = new Set();
+  state.aclColumnsCustomized = false;
+  state.exportVisibleColumns = false;
   state.environments = [createEnvironment(), createEnvironment()];
   renderImport();
   showImport();
@@ -794,9 +810,83 @@ function formatAclCell(value) {
   return String(safeDecode(value));
 }
 
+function screenDefaultColumns() {
+  const singleEnvironment = state.result?.environments.length === 1;
+  const all = ACL_COLUMNS.map((column) => column.key);
+  const omitSingleEnvironment = (keys) => keys.filter((key) => !(singleEnvironment && key === 'environmentName'));
+
+  if (window.innerWidth >= 1500) {
+    return new Set(omitSingleEnvironment(all));
+  }
+
+  if (window.innerWidth >= 1000) {
+    return new Set(omitSingleEnvironment([
+      'environmentName',
+      'resource',
+      'localService',
+      'authMethod',
+      'path',
+      'ipAddress',
+      'encryption',
+      'group',
+      'vhName',
+      'source',
+      'ruleIndex',
+      'deny',
+      'disabled',
+    ]));
+  }
+
+  return new Set(omitSingleEnvironment([
+    'environmentName',
+    'resource',
+    'localService',
+    'authMethod',
+    'group',
+    'path',
+    'ipAddress',
+    'source',
+    'deny',
+  ]));
+}
+
+function visibleAclColumns() {
+  return ACL_COLUMNS.filter((column) => state.aclVisibleColumns.has(column.key));
+}
+
+function renderAclColumnOptions() {
+  clear(dom.aclColumnOptions);
+  for (const column of ACL_COLUMNS) {
+    const checkbox = el('input', {
+      type: 'checkbox',
+      checked: state.aclVisibleColumns.has(column.key),
+      value: column.key,
+    });
+    checkbox.addEventListener('change', () => {
+      if (!checkbox.checked && state.aclVisibleColumns.size <= 1) {
+        checkbox.checked = true;
+        toast('Keep at least one ACL column visible.', 'error');
+        return;
+      }
+      if (checkbox.checked) state.aclVisibleColumns.add(column.key);
+      else state.aclVisibleColumns.delete(column.key);
+      state.aclColumnsCustomized = true;
+      renderAcl();
+    });
+    dom.aclColumnOptions.append(
+      el('label', { className: 'column-option' }, checkbox, el('span', { text: column.label })),
+    );
+  }
+  dom.aclColumnCount.textContent = `${state.aclVisibleColumns.size}/${ACL_COLUMNS.length}`;
+  dom.exportVisibleColumns.checked = state.exportVisibleColumns;
+}
+
 function renderAcl() {
   if (!state.result) return;
+  if (!state.aclVisibleColumns.size) state.aclVisibleColumns = screenDefaultColumns();
+  const columns = visibleAclColumns();
   renderAclFilterOptions();
+  renderAclColumnOptions();
   const records = filteredAclRecords();
   const totalPages = Math.max(1, Math.ceil(records.length / ACL_PAGE_SIZE));
   state.aclPage = Math.min(Math.max(1, state.aclPage), totalPages);
@@ -818,7 +908,7 @@ function renderAcl() {
     const table = el('table');
     const thead = el('thead');
     const header = el('tr');
-    for (const column of ACL_COLUMNS) header.append(el('th', { text: column.label }));
+    for (const column of columns) header.append(el('th', { text: column.label }));
     thead.append(header);
     const tbody = el('tbody');
 
@@ -830,7 +920,7 @@ function renderAcl() {
         role: 'button',
         ariaLabel: `Open ACL detail for ${record.resource} rule ${record.ruleIndex}`,
       });
-      for (const column of ACL_COLUMNS) {
+      for (const column of columns) {
         let value;
         if (column.key === 'extra') {
           value = record.extra && Object.keys(record.extra).length ? JSON.stringify(record.extra) : '';
@@ -1004,18 +1094,20 @@ function exportAcl(scope) {
   if (!state.result) return;
   const records = scope === 'all' ? state.result.aclRules : filteredAclRecords();
   const format = dom.exportFormat.value;
+  const columns = state.exportVisibleColumns ? visibleAclColumns() : ACL_COLUMNS;
   const context = {
     generatedAt: state.result.generatedAt,
     environments: state.result.environments.map((environment) => environment.name),
     filters: currentAclFilters(scope),
+    columns: state.exportVisibleColumns ? 'visible' : 'all',
   };
   const base = `onegate-acl-${scope}-${timestampSlug()}`;
   if (format === 'html') {
-    downloadText(`${base}.html`, toHtml(records, context), 'text/html;charset=utf-8');
+    downloadText(`${base}.html`, toHtml(records, context, columns), 'text/html;charset=utf-8');
   } else if (format === 'json') {
-    downloadText(`${base}.json`, toJson(records, context), 'application/json;charset=utf-8');
+    downloadText(`${base}.json`, toJson(records, context, columns), 'application/json;charset=utf-8');
   } else {
-    downloadText(`${base}.csv`, toCsv(records), 'text/csv;charset=utf-8');
+    downloadText(`${base}.csv`, toCsv(records, columns), 'text/csv;charset=utf-8');
   }
   toast(`Exported ${formatNumber(records.length)} ACL rules (${format.toUpperCase()}).`, 'ok');
 }
@@ -1219,8 +1311,28 @@ function bindEvents() {
   dom.exportFormat.addEventListener('change', () => {
     state.aclFormat = dom.exportFormat.value;
   });
+  dom.exportVisibleColumns.addEventListener('change', () => {
+    state.exportVisibleColumns = dom.exportVisibleColumns.checked;
+  });
+  dom.aclColumnsAll.addEventListener('click', () => {
+    state.aclVisibleColumns = new Set(ACL_COLUMNS.map((column) => column.key));
+    state.aclColumnsCustomized = true;
+    renderAcl();
+  });
+  dom.aclColumnsReset.addEventListener('click', () => {
+    state.aclColumnsCustomized = false;
+    state.aclVisibleColumns = screenDefaultColumns();
+    renderAcl();
+  });
   dom.exportAll.addEventListener('click', () => exportAcl('all'));
   dom.exportFiltered.addEventListener('click', () => exportAcl('filtered'));
+
+  const responsiveAclColumns = debounce(() => {
+    if (!state.result || state.aclColumnsCustomized) return;
+    state.aclVisibleColumns = screenDefaultColumns();
+    if (state.view === 'acl') renderAcl();
+  }, 180);
+  window.addEventListener('resize', responsiveAclColumns);
 
   window.addEventListener('hashchange', () => {
     if (!state.result) return;

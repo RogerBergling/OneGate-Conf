@@ -42,9 +42,9 @@ function cellValue(value) {
   return String(value);
 }
 
-export function flattenAclRecord(record) {
+export function flattenAclRecord(record, columns = ACL_COLUMNS) {
   const output = {};
-  for (const column of ACL_COLUMNS) {
+  for (const column of columns) {
     if (column.key === 'extra') {
       const extra = sanitizeExtra(record.extra || {});
       output.extra = Object.keys(extra).length ? JSON.stringify(extra) : '';
@@ -64,16 +64,16 @@ function csvEscape(value) {
   return text;
 }
 
-export function toCsv(records) {
-  const rows = [ACL_COLUMNS.map((column) => csvEscape(column.label)).join(',')];
+export function toCsv(records, columns = ACL_COLUMNS) {
+  const rows = [columns.map((column) => csvEscape(column.label)).join(',')];
   for (const record of records) {
-    const flat = flattenAclRecord(record);
-    rows.push(ACL_COLUMNS.map((column) => csvEscape(flat[column.key])).join(','));
+    const flat = flattenAclRecord(record, columns);
+    rows.push(columns.map((column) => csvEscape(flat[column.key])).join(','));
   }
   return `${rows.join('\r\n')}\r\n`;
 }
 
-export function toJson(records, context = {}) {
+export function toJson(records, context = {}, columns = ACL_COLUMNS) {
   return JSON.stringify(
     {
       schemaVersion: 1,
@@ -82,7 +82,7 @@ export function toJson(records, context = {}) {
       environments: context.environments || [],
       filters: context.filters || {},
       count: records.length,
-      rules: records.map(flattenAclRecord),
+      rules: records.map((record) => flattenAclRecord(record, columns)),
     },
     null,
     2,
@@ -98,7 +98,7 @@ function escapeHtml(value) {
     .replace(/'/g, '&#39;');
 }
 
-export function toHtml(records, context = {}) {
+export function toHtml(records, context = {}, columns = ACL_COLUMNS) {
   const generatedAt = context.generatedAt || new Date().toISOString();
   const environments = (context.environments || []).join(', ') || '—';
   const filters = context.filters || {};
@@ -108,8 +108,8 @@ export function toHtml(records, context = {}) {
     .join('');
 
   const body = records.map((record) => {
-    const flat = flattenAclRecord(record);
-    return `<tr>${ACL_COLUMNS.map((column) => `<td>${escapeHtml(flat[column.key])}</td>`).join('')}</tr>`;
+    const flat = flattenAclRecord(record, columns);
+    return `<tr>${columns.map((column) => `<td>${escapeHtml(flat[column.key])}</td>`).join('')}</tr>`;
   }).join('\n');
 
   return `<!doctype html>
@@ -150,7 +150,7 @@ export function toHtml(records, context = {}) {
   </div>
   ${filterRows ? `<table class="filters"><tbody>${filterRows}</tbody></table><br>` : ''}
   <table>
-    <thead><tr>${ACL_COLUMNS.map((column) => `<th>${escapeHtml(column.label)}</th>`).join('')}</tr></thead>
+    <thead><tr>${columns.map((column) => `<th>${escapeHtml(column.label)}</th>`).join('')}</tr></thead>
     <tbody>${body}</tbody>
   </table>
 </main>

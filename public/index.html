@@ -184,6 +184,17 @@
 
         <div class="acl-actions">
           <span id="acl-count" class="status-text"></span>
+          <details id="acl-column-picker" class="column-picker">
+            <summary class="button ghost">Columns <span id="acl-column-count" class="badge accent">0</span></summary>
+            <div class="column-picker-panel">
+              <div id="acl-column-options" class="column-options"></div>
+              <label class="inline-check"><input id="export-visible-columns" type="checkbox"> Use visible columns in exports</label>
+              <div class="column-picker-actions">
+                <button id="acl-columns-all" class="button ghost" type="button">All</button>
+                <button id="acl-columns-reset" class="button ghost" type="button">Screen defaults</button>
+              </div>
+            </div>
+          </details>
           <div class="export-controls">
             <label class="field compact">
               <span>Format</span>
