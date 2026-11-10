@@ -40,6 +40,11 @@
         </div>
       </div>
 
+      <div class="callout warning-callout" role="note">
+        <strong>Before you start</strong>
+        <p>You need <strong>root access to the OneGate server</strong> or an <strong>already extracted backup</strong>. This tool reads plain-text config files only. It does <strong>not</strong> decrypt <code>.bup</code> backup files, and backup decryption is deliberately out of scope.</p>
+      </div>
+
       <div class="section-heading">
         <div>
           <h2>Environments</h2>
@@ -246,6 +251,10 @@ Browser File API ──► Web Worker ──► parser ──► comparison
               <li>Non-secret configuration, group DNs, internal IPs and resource names are still sensitive.</li>
               <li>If exposed beyond localhost, use HTTPS and reverse-proxy authentication.</li>
             </ul>
+          </div>
+          <div class="security-card">
+            <h3>Getting the config files</h3>
+            <p>You need root access to the OneGate server or an already extracted backup. This application does not decrypt <code>.bup</code> backup files and will not implement decryption. Extract the plain-text configuration with your own procedure before importing it.</p>
           </div>
           <div class="security-card">
             <h3>Exports</h3>

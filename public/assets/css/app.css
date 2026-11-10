@@ -461,6 +461,44 @@ main {
   color: var(--green);
 }
 
+.callout {
+  margin: 0 0 24px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--panel);
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+.callout strong {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--text);
+}
+
+.callout p {
+  margin: 0;
+  max-width: 95ch;
+}
+
+.callout code {
+  padding: 1px 5px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: var(--bg-soft);
+  color: var(--text);
+}
+
+.warning-callout {
+  border-color: color-mix(in srgb, var(--amber) 45%, var(--line));
+  background: color-mix(in srgb, var(--amber) 6%, var(--panel));
+}
+
+.warning-callout strong {
+  color: var(--amber);
+}
+
 .security-note {
   margin-top: 28px;
   border: 1px solid var(--line);

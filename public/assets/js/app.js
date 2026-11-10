@@ -398,12 +398,25 @@ function renderImport() {
 function addFiles(environmentId, fileList) {
   const environment = state.environments.find((item) => item.id === environmentId);
   if (!environment) return;
+
+  const rejected = [];
   for (const file of [...fileList]) {
+    if (/\.bup$/i.test(file.name)) {
+      rejected.push(file.name);
+      continue;
+    }
     const duplicate = environment.files.some((item) => item.name === file.name && item.size === file.size);
     if (!duplicate) {
       environment.files.push({ file, name: file.name, size: file.size });
     }
   }
+
+  if (rejected.length) {
+    const message = `Backup file${rejected.length === 1 ? '' : 's'} not supported: ${rejected.join(', ')}. This tool does not decrypt .bup backups. Extract the plain-text config first.`;
+    setStatus(message, 'error');
+    toast(message, 'error');
+  }
+
   renderImport();
 }
 

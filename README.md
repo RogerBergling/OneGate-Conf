@@ -54,6 +54,17 @@ docker compose up -d
 
 `compose.yaml` is intentionally self-contained: copy it next to a checkout, build the image, and run `docker compose up -d`. The port is bound to `127.0.0.1` by default; change that only behind HTTPS and an authenticating reverse proxy.
 
+## Getting the config files
+
+To use this tool you need one of:
+
+- **root access to the OneGate server**, so you can read/export the plain-text configuration files directly; or
+- an **already extracted backup**, with the plain-text config files available.
+
+This application **does not decrypt `.bup` backup files**, and backup decryption is deliberately out of scope. If you only have a `.bup`, extract it with your own procedure first. Importing a `.bup` is rejected with a clear message rather than parsing binary data.
+
+Do not upload, commit or share real configuration files. Use `fixtures/private/` for local samples and redact secrets before sharing anything outside your environment.
+
 ## Screenshots
 
 | Resources | ACL rules |
@@ -101,6 +112,7 @@ The goal is a local-first browser tool that answers, for 1-5 named environments.
 - Provide a **global ACL view** across every resource and virtual host, from both `<ACL>` and `<ACCESS_CONTROL_LIST>`, with filters for environment, resource, virtual host, source, auth method, encryption, deny and free text.
 - **Export all ACL rules**, or only the filtered view, as CSV, HTML or JSON. Exports are generated in the browser.
 - Redact passwords, keys, tokens, `client_secret` and `FORCE_INTERNAL_AUTH_PWD` before rendering.
+- Reject `.bup` backup files with a clear message; extract the plain-text config first.
 - Run entirely in memory: no upload endpoint, no browser storage, no analytics, no third-party requests.
 - Include a synthetic **demo** so the application can be evaluated without real configuration.
 
@@ -495,7 +507,7 @@ Current status:
 - **12/12 parser and export tests pass** under Node 22, including single-file mode and multi-file merging per environment.
 - **Repository verification passes**: required files, no forbidden storage/network/HTML-injection APIs, CSP present, Compose hardening and MIT license.
 - **Server smoke test passes**: static shell, JS, CSP, `no-store`, content type, 404, path-traversal rejection and POST rejection.
-- **Browser smoke test passes** with Chromium/Playwright: demo import, file-based import, single-file ACL mode, resource table, resource detail, secret redaction, ACL filters, CSV download, schema drift, empty browser storage and no external requests.
+- **Browser smoke test passes** with Chromium/Playwright: demo import, file-based import, `.bup` rejection, single-file ACL mode, resource table, resource detail, secret redaction, ACL filters, CSV download, schema drift, empty browser storage and no external requests.
 - **Docker build is covered by CI**; the local development environment used here has no Docker daemon.
 
 The test suite covers section splitting, comments, the `<HEADER>` marker, properties, tables, JSON, secret markers, resource profiles, VH assignment, single-file mode, multi-file merging per environment, both ACL sources, missing/different resources, schema drift, empty-versus-absent comparison, the bundled demo, CSV formula-injection protection, HTML escaping and JSON export.
