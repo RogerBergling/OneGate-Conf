@@ -42,6 +42,7 @@ const state = {
   exportVisibleColumns: false,
   aclFormat: 'csv',
   emptyAsAbsent: true,
+  ignoredFields: new Map(),
 };
 
 const dom = {
@@ -55,6 +56,9 @@ const dom = {
   importStatus: document.getElementById('import-status'),
   emptyAsAbsent: document.getElementById('empty-as-absent'),
   emptyAsAbsentToggle: document.getElementById('empty-as-absent-toggle'),
+  ignoredFieldsOptions: document.getElementById('ignored-fields-options'),
+  ignoredFieldsCount: document.getElementById('ignored-fields-count'),
+  ignoredFieldsClear: document.getElementById('ignored-fields-clear'),
   forgetButton: document.getElementById('forget-button'),
   themeToggle: document.getElementById('theme-toggle'),
   summary: document.getElementById('summary'),
@@ -152,6 +156,7 @@ function statusPill(status, label) {
     same: 'Same',
     different: 'Different',
     missing: 'Missing',
+    ignored: 'Ignored',
     present: 'Present',
     unknown: 'Unknown',
   }[status] || status;
@@ -439,6 +444,15 @@ function addFiles(environmentId, fileList) {
   renderImport();
 }
 
+function requestRecompare() {
+  if (!state.result || !state.worker) return;
+  state.worker.postMessage({
+    type: 'recompare',
+    emptyAsAbsent: state.emptyAsAbsent,
+    ignoredFields: [...state.ignoredFields.keys()],
+  });
+}
+
 function compareEnvironments() {
   if (state.loading) return;
   const active = state.environments.filter((environment) => environment.files.length > 0);
@@ -448,12 +462,14 @@ function compareEnvironments() {
   }
 
   state.loading = true;
+  state.ignoredFields = new Map();
   dom.compareButton.disabled = true;
   setStatus(active.length === 1 ? 'Opening the configuration in the browser…' : 'Parsing files in the browser…', '');
 
   state.worker.postMessage({
     type: 'analyze',
     emptyAsAbsent: state.emptyAsAbsent,
+    ignoredFields: [],
     environments: active.map((environment) => ({
       id: environment.id,
       name: environment.name.trim() || `Environment ${environment.id}`,
@@ -497,10 +513,55 @@ function resetApplication() {
   state.aclVisibleColumns = new Set();
   state.aclColumnsCustomized = false;
   state.exportVisibleColumns = false;
+  state.ignoredFields = new Map();
   state.environments = [createEnvironment(), createEnvironment()];
   renderImport();
   showImport();
   setStatus('', '');
+}
+
+function setFieldIgnored(path, label, ignored) {
+  if (ignored) state.ignoredFields.set(path, label);
+  else state.ignoredFields.delete(path);
+  renderIgnoredFieldOptions();
+  requestRecompare();
+  toast(
+    ignored
+      ? `Ignoring ${label} in every resource for this comparison.`
+      : `Comparing ${label} again in every resource.`,
+    'ok',
+  );
+}
+
+function renderIgnoredFieldOptions() {
+  clear(dom.ignoredFieldsOptions);
+  const entries = [...state.ignoredFields.entries()].sort((left, right) => left[1].localeCompare(right[1]));
+  dom.ignoredFieldsCount.textContent = String(entries.length);
+  dom.ignoredFieldsClear.disabled = entries.length === 0;
+  if (!entries.length) {
+    dom.ignoredFieldsOptions.append(
+      el('p', { className: 'status-text', text: 'No fields are excluded. Use the Ignore checkbox on any compared field to exclude it from every resource.' }),
+    );
+    return;
+  }
+  for (const [path, label] of entries) {
+    const remove = el('button', {
+      className: 'link-button',
+      type: 'button',
+      text: 'compare again',
+      ariaLabel: `Compare ${label} again in every resource`,
+    });
+    remove.addEventListener('click', () => setFieldIgnored(path, label, false));
+    dom.ignoredFieldsOptions.append(
+      el('div', { className: 'ignored-field-item' },
+        el('div', { className: 'ignored-field-copy' },
+          el('strong', { text: label }),
+          el('span', { className: 'ignored-field-path mono', text: path, title: path }),
+        ),
+        remove,
+      ),
+    );
+  }
 }
 
 function renderResourceVhOptions() {
@@ -533,6 +594,7 @@ function filteredResources() {
 function renderResources() {
   if (!state.result) return;
   renderResourceVhOptions();
+  renderIgnoredFieldOptions();
   const resources = filteredResources();
   const totalPages = Math.max(1, Math.ceil(resources.length / RESOURCE_PAGE_SIZE));
   state.resourcePage = Math.min(Math.max(1, state.resourcePage), totalPages);
@@ -644,6 +706,10 @@ function renderResourceDetail() {
     renderResourceDetail();
   });
 
+  const ignoredSuffix = resource.ignoredCount
+    ? ` · ${formatNumber(resource.ignoredCount)} ignored globally`
+    : '';
+
   dom.resourceDetail.append(
     el('div', { className: 'detail-header' },
       el('div', {},
@@ -657,21 +723,22 @@ function renderResourceDetail() {
         el('div', { className: 'toolbar' },
           resourceStatusPill(resource.status),
           el('label', { className: 'inline-check' }, toggle, 'Show all fields'),
-          el('span', { className: 'status-text', text: `${formatNumber(resource.diffCount)} differences` }),
+          el('span', { className: 'status-text', text: `${formatNumber(resource.diffCount)} differences${ignoredSuffix}` }),
         ),
       ),
     ),
   );
 
   const body = dom.resourceDetail.querySelector('.detail-body');
-  const rows = resource.rows.filter((row) => state.detailShowAll || row.status !== 'same');
+  const rows = resource.rows.filter((row) => state.detailShowAll || (!row.ignored && row.status !== 'same'));
   if (!rows.length) {
-    body.append(el('div', {
-      className: 'detail-empty',
-      text: state.result.environments.length === 1
-        ? 'Single-file mode: turn on “Show all fields” to inspect every value.'
-        : 'No differences in this resource. Turn on “Show all fields” to inspect every compared value.',
-    }));
+    let text = 'No differences in this resource. Turn on “Show all fields” to inspect every compared value.';
+    if (state.result.environments.length === 1) {
+      text = 'Single-file mode: turn on “Show all fields” to inspect every value.';
+    } else if (resource.ignoredCount) {
+      text = `${formatNumber(resource.ignoredCount)} field(s) are ignored globally for this comparison. Use “Ignored fields” in the toolbar or turn on “Show all fields” to review them.`;
+    }
+    body.append(el('div', { className: 'detail-empty', text }));
   } else {
     const groups = new Map();
     for (const row of rows) {
@@ -685,11 +752,14 @@ function renderResourceDetail() {
       const header = el('tr');
       header.append(el('th', { text: 'Field' }));
       for (const name of environmentNames) header.append(el('th', { text: name }));
-      header.append(el('th', { text: 'Status' }));
+      header.append(
+        el('th', { text: 'Status' }),
+        el('th', { text: 'Ignore', title: 'Exclude this field from every resource in this comparison' }),
+      );
       thead.append(header);
       const tbody = el('tbody');
       for (const row of groupRows) {
-        const tr = el('tr');
+        const tr = el('tr', { className: row.ignored ? 'is-ignored' : '' });
         const label = el('td', {});
         label.append(el('span', { text: row.label }));
         if (row.isSecret) label.append(document.createTextNode(' '), badge('secret', 'violet'));
@@ -697,7 +767,23 @@ function renderResourceDetail() {
         for (const value of row.values) {
           tr.append(el('td', { className: 'mono', text: value, title: value }));
         }
-        tr.append(el('td', {}, rowStatusPill(row.status)));
+        tr.append(el('td', {}, row.ignored ? statusPill('ignored', 'Ignored') : rowStatusPill(row.status)));
+        const ignoreCheck = el('input', {
+          type: 'checkbox',
+          checked: row.ignored,
+          ariaLabel: `Ignore ${row.label} in every resource`,
+        });
+        ignoreCheck.addEventListener('change', () => {
+          setFieldIgnored(row.path, row.label, ignoreCheck.checked);
+        });
+        tr.append(
+          el('td', { className: 'ignore-cell' },
+            el('label', {
+              className: 'ignore-check',
+              title: 'Exclude this field from every resource in this comparison',
+            }, ignoreCheck),
+          ),
+        );
         tbody.append(tr);
       }
       table.append(thead, tbody);
@@ -1236,9 +1322,17 @@ function bindEvents() {
     state.emptyAsAbsent = dom.emptyAsAbsentToggle.checked;
     dom.emptyAsAbsent.checked = state.emptyAsAbsent;
     if (state.result && state.worker) {
-      state.worker.postMessage({ type: 'recompare', emptyAsAbsent: state.emptyAsAbsent });
-      setStatus('Recomparing with the new empty-value rule…', '');
+      requestRecompare();
+      toast('Recomparing with the new empty-value rule.', 'ok');
     }
+  });
+
+  dom.ignoredFieldsClear.addEventListener('click', () => {
+    if (!state.ignoredFields.size) return;
+    state.ignoredFields.clear();
+    renderIgnoredFieldOptions();
+    requestRecompare();
+    toast('All globally ignored fields are compared again.', 'ok');
   });
 
   dom.themeToggle.addEventListener('click', () => {

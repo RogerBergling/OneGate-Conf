@@ -21,6 +21,9 @@ function cacheKey(row) {
 
 function buildDiffRows(profiles, environments, options) {
   const rows = [];
+  const ignoredFields = options.ignoredFields instanceof Set
+    ? options.ignoredFields
+    : new Set(options.ignoredFields || []);
   let order = 0;
 
   function addRow(path, label, group, values, arrayMode = 'ordered') {
@@ -32,6 +35,7 @@ function buildDiffRows(profiles, environments, options) {
       group,
       values: values.map((value) => formatValue(value)),
       status,
+      ignored: ignoredFields.has(path),
       isSecret: values.some((value) => isSecretMarker(value)),
       order,
     };
@@ -181,8 +185,10 @@ function buildSchemaComparison(environments) {
 }
 
 export function buildComparison(environments, options = {}) {
+  const ignoredFields = [...new Set((options.ignoredFields || []).map(String).filter(Boolean))].sort();
   const settings = {
     emptyAsAbsent: options.emptyAsAbsent !== false,
+    ignoredFields,
   };
 
   const resourceNames = new Set();
@@ -197,8 +203,12 @@ export function buildComparison(environments, options = {}) {
       .filter((environment, index) => Boolean(profiles[index]))
       .map((environment) => environment.id);
 
-    const rows = buildDiffRows(profiles, environments, settings);
-    const diffCount = rows.filter((row) => row.status !== 'same').length;
+    const rows = buildDiffRows(profiles, environments, {
+      emptyAsAbsent: settings.emptyAsAbsent,
+      ignoredFields,
+    });
+    const diffCount = rows.filter((row) => !row.ignored && row.status !== 'same').length;
+    const ignoredCount = rows.filter((row) => row.ignored).length;
     const missing = presentIn.length < environments.length;
     const status = missing ? 'missing' : (diffCount ? 'different' : 'same');
     const first = profiles.find(Boolean);
@@ -211,6 +221,7 @@ export function buildComparison(environments, options = {}) {
       ports: first?.ports || [],
       status,
       diffCount,
+      ignoredCount,
       presentIn,
       counts: {
         aclLegacy: first?.counts?.aclLegacy || 0,
@@ -243,6 +254,8 @@ export function buildComparison(environments, options = {}) {
     schemaDrift: schema.driftCount,
     unknownSections: schema.unknownSections.length,
     parseErrors: schema.parseErrors.length,
+    ignoredFields: settings.ignoredFields.length,
+    ignoredRows: resources.reduce((total, resource) => total + resource.ignoredCount, 0),
   };
 
   return {

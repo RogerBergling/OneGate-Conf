@@ -233,6 +233,46 @@ test('buildComparison detects differences, missing resources and schema drift', 
   assert.ok(result.aclRules.length >= 3);
 });
 
+test('global field exclusions apply to every resource and remove matching differences', () => {
+  const resourceBlock = (port) => `<RESOURCE_LIST>
+{"resourceMap":[
+  {"portal":{"listAttribs":{"ADDRESS_LIST":["192.0.2.10"],"PORT_LIST":["${port}"]}}},
+  {"api":{"listAttribs":{"ADDRESS_LIST":["192.0.2.20"],"PORT_LIST":["${port}"]}}}
+]}
+</RESOURCE_LIST>`;
+  const left = buildEnvironment(
+    { id: 1, name: 'Left' },
+    [{ fileName: 'left.conf', text: resourceBlock('443') }],
+    new SecretVault(),
+  );
+  const right = buildEnvironment(
+    { id: 2, name: 'Right' },
+    [{ fileName: 'right.conf', text: resourceBlock('8443') }],
+    new SecretVault(),
+  );
+
+  const baseline = buildComparison([left, right], { emptyAsAbsent: true });
+  assert.equal(baseline.stats.different, 2);
+
+  const filtered = buildComparison([left, right], {
+    emptyAsAbsent: true,
+    ignoredFields: ['RESOURCE_LIST.listAttribs.PORT_LIST'],
+  });
+  assert.equal(filtered.stats.different, 0);
+  assert.equal(filtered.stats.same, 2);
+  assert.equal(filtered.stats.ignoredFields, 1);
+  assert.equal(filtered.settings.ignoredFields[0], 'RESOURCE_LIST.listAttribs.PORT_LIST');
+
+  for (const resource of filtered.resources) {
+    const row = resource.rows.find((item) => item.path === 'RESOURCE_LIST.listAttribs.PORT_LIST');
+    assert.equal(row.ignored, true);
+    assert.equal(row.status, 'different');
+    assert.equal(resource.diffCount, 0);
+    assert.equal(resource.status, 'same');
+    assert.equal(resource.ignoredCount, 1);
+  }
+});
+
 test('the bundled demo parses, compares and keeps its secret marker redacted', () => {
   const vault = new SecretVault();
   const environments = DEMO_ENVIRONMENTS.map((environment, index) => buildEnvironment(

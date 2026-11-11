@@ -90,7 +90,7 @@
         <div class="section-heading">
           <div>
             <h2 id="resources-title">Resources</h2>
-            <p>Resource profiles are assembled by name from resource settings, host entries, menus, cache rules and both ACL sources.</p>
+            <p>Resource profiles are assembled by name from resource settings, host entries, menus, cache rules and both ACL sources. Tick <strong>Ignore</strong> on a compared field to exclude that field path from every resource in this comparison; restore it from <strong>Ignored fields</strong>.</p>
           </div>
         </div>
 
@@ -113,6 +113,16 @@
             <select id="resource-vh"><option value="all">All virtual hosts</option></select>
           </label>
           <label class="inline-check"><input id="empty-as-absent-toggle" type="checkbox" checked> Empty = absent</label>
+          <details id="ignored-fields-picker" class="column-picker ignored-fields-picker">
+            <summary class="button ghost">Ignored fields <span id="ignored-fields-count" class="badge accent">0</span></summary>
+            <div class="column-picker-panel ignored-fields-panel">
+              <p class="status-text">An ignored field path is excluded from every resource in this comparison, not just the resource where the checkbox was ticked. Nothing is stored.</p>
+              <div id="ignored-fields-options" class="ignored-fields-options"></div>
+              <div class="column-picker-actions">
+                <button id="ignored-fields-clear" class="button ghost" type="button" disabled>Compare all again</button>
+              </div>
+            </div>
+          </details>
           <span class="badge accent" title="The supplied configs key resources by name; number mode is deferred">Key: name</span>
           <span id="resource-count" class="status-text"></span>
           <button id="export-resources" class="button ghost" type="button">Export all resources (CSV)</button>
@@ -254,7 +264,7 @@ Browser File API ──► Web Worker ──► parser ──► comparison
             <h3>Guarantees</h3>
             <ul>
               <li>No upload endpoint; the static server has no write path.</li>
-              <li>No browser storage for configuration data.</li>
+              <li>No browser storage for configuration data. Global field exclusions are session-only and cleared by Forget.</li>
               <li>Classified secret values never reach the page, exports or logs.</li>
               <li>Password, secret, token and key-name suffix matching also covers nested resource and ACL fields.</li>
               <li>JSON parse errors never echo configuration content, and the worker clears its raw secret vault after parsing.</li>
@@ -269,6 +279,7 @@ Browser File API ──► Web Worker ──► parser ──► comparison
               <li>The browser and device are trusted endpoints; developer tools or extensions can inspect memory.</li>
               <li>JavaScript memory cannot be reliably zeroized.</li>
               <li>Secret detection is not omniscient; the redaction review exists for that reason.</li>
+              <li>Global field exclusions suppress differences in every resource for the current comparison. Review the Ignored fields list before treating a result as clean.</li>
               <li>Non-secret configuration, group DNs, internal IPs and resource names are still sensitive.</li>
               <li>If exposed beyond localhost, use HTTPS and reverse-proxy authentication.</li>
             </ul>

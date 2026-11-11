@@ -857,6 +857,12 @@ button.badge:hover {
   color: var(--blue);
 }
 
+.status-pill.ignored {
+  border-style: dashed;
+  border-color: var(--line);
+  color: var(--faint);
+}
+
 .badge {
   display: inline-flex;
   align-items: center;
@@ -1083,6 +1089,82 @@ button.badge:hover {
   margin-top: 10px;
   padding-top: 10px;
   border-top: 1px solid var(--line-soft);
+}
+
+.ignored-fields-panel {
+  width: min(380px, calc(100vw - 44px));
+}
+
+.ignored-fields-panel > .status-text {
+  margin: 0 0 10px;
+}
+
+.ignored-fields-options {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ignored-fields-options > .status-text {
+  margin: 0;
+}
+
+.ignored-field-item {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 7px 8px;
+  border: 1px solid var(--line-soft);
+  border-radius: 8px;
+  background: var(--panel-2);
+}
+
+.ignored-field-copy {
+  min-width: 0;
+}
+
+.ignored-field-copy strong {
+  display: block;
+  font-size: 0.78rem;
+}
+
+.ignored-field-path {
+  display: block;
+  overflow: hidden;
+  color: var(--faint);
+  font-size: 0.68rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ignored-field-item .link-button {
+  flex: none;
+  font-size: 0.72rem;
+}
+
+.ignore-cell {
+  width: 1%;
+  text-align: center;
+}
+
+.ignore-check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.ignore-check input {
+  accent-color: var(--accent);
+}
+
+.detail-table tr.is-ignored td {
+  color: var(--faint);
+}
+
+.detail-table tr.is-ignored td.mono {
+  opacity: 0.65;
 }
 
 .acl-table-wrap table {

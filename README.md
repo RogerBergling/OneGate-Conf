@@ -2,7 +2,7 @@
 
 **Find configuration drift between OneGate environments in the browser — without uploading configuration files or exposing secrets.**
 
-> **Status: first release implemented.** The section-aware parser, resource comparison, global ACL view, CSV/HTML/JSON export and Docker packaging are in this repository. The first release focuses on resources and ACLs. Full global-setting diff, acceptance ledger/OK ticks and number-based matching are next.
+> **Status: first release implemented.** The section-aware parser, resource comparison, global field exclusions, global ACL view, CSV/HTML/JSON export and Docker packaging are in this repository. The first release focuses on resources and ACLs. Full global-setting diff, acceptance ledger/OK ticks and number-based matching are next.
 
 ## Quick start
 
@@ -108,6 +108,7 @@ The goal is a local-first browser tool that answers, for 1-5 named environments.
 - Parse the section-based OneGate format: properties, lists, whitespace tables, embedded JSON, comments, empty sections and the `<HEADER>` marker.
 - Assemble a **resource profile by name** from resource settings, host entries, both ACL sources, menu entries, cache rules, e-sign fields and virtual-host assignment.
 - Compare resource profiles across environments and show **same**, **different** and **missing** status with field-level detail.
+- Exclude a compared field path from the **entire comparison** with an **Ignore** checkbox. An ignored field stops counting as a difference for every resource, and the **Ignored fields** panel restores it. The exclusion list is session-only and applies to the whole comparison, not one resource.
 - Show **schema drift** separately when environments do not share the same sections — useful when they run different OneGate versions.
 - Provide a **global ACL view** across every resource and virtual host, from both `<ACL>` and `<ACCESS_CONTROL_LIST>`, with filters for environment, resource, virtual host, service, source, auth method, encryption, deny and free text.
 - Show the **local service** and **resource type** for detailed ACL rules, and open a full rule detail panel from any row or source badge.
@@ -122,6 +123,7 @@ The goal is a local-first browser tool that answers, for 1-5 named environments.
 
 - Full semantic diff of every global/system setting.
 - Acceptance ledger and OK/reviewed ticks.
+- Saved, reusable or shareable field-exclusion presets. Ignore selections currently live only for the open comparison in the current tab.
 - Number-based resource matching; the samples use resource names as the only stable resource key.
 - Certificate content parsing; only certificate paths are compared.
 - Editing, merging or pushing configuration back to OneGate.
@@ -139,6 +141,7 @@ The goal is a local-first browser tool that answers, for 1-5 named environments.
 | Reference resolution | Virtual-host references are resolved for resource profiles. Cross-section numeric reference resolution is planned for the full diff. |
 | Settings scope | Resource and ACL sections are compared now. The full global/per-virtual-host setting diff is planned. |
 | Metadata | Runtime timestamps and counters are excluded from the first-release views; the full ignore policy is still being confirmed. |
+| Field exclusions | A checkbox on any compared field row excludes that field path from every resource in the current comparison. Resource status, summary counts and resource CSV export are recalculated. The list is in memory only and never reveals secret values. |
 | Secrets | Section-aware redaction for passwords, keys, tokens and `client_secret`; no reveal action. |
 | Certificates | Certificate content is out of scope. Only the certificate paths present in the config are compared. |
 | System settings | Expected to be identical. The full global-setting diff is planned. |
@@ -174,6 +177,21 @@ A resource is assembled by name from the sections that reference it:
 | `<VH_SELECT_RESOURCES>` | Virtual-host assignment. |
 
 The resource view compares these profiles across environments and shows only differences by default. Node configuration is optional: `NODE_CONFIG-*` only matters for clustered deployments, and its absence is not treated as an error.
+
+### Global field exclusions
+
+Some fields are expected to differ between environments, for example an IP address, a server hostname or an endpoint. The comparison row is still useful evidence, but it should not keep the whole resource in **Different** state.
+
+1. Open a resource and find the compared field row.
+2. Tick **Ignore** on the right of the row.
+3. The field path is added to the **Ignored fields** list in the Resources toolbar. It is excluded from **every resource** in the current comparison, not just the resource where the checkbox was ticked.
+4. Tick the checkbox again, or use **compare again** in the Ignored fields list, to restore the field. **Compare all again** clears the whole exclusion list.
+
+The exclusion is applied in the worker before status calculation. It therefore changes resource status, the summary counts and the resource CSV export. Ignored rows remain available under **Show all fields** with an **Ignored** status so the decision is auditable during the session. The list is held in memory only, clears on **Forget** or when a new comparison is opened, and is never written to browser storage or the server.
+
+Secret redaction is unchanged. Ignoring a secret-bearing field suppresses its difference in the same way as any other field, but the value remains `[redacted]`; an ignored secret difference is not reviewed for you, so use this for genuinely expected differences only.
+
+The checkbox is available on the compared resource fields that the first release supports. The global ACL view is a browser and export surface, not yet a field-level ACL diff, so individual ACL rule IPs do not have a comparison checkbox in this release.
 
 ### ACL export
 
@@ -281,6 +299,7 @@ The comparison is **semantic and field-level**, not line-level. Before comparing
 - normalises URL-encoded values where the section semantics call for it;
 - compares typed values (string, number, boolean, empty, absent) without silently coercing them;
 - keeps empty and absent distinct by default, with an explicit **treat empty as absent** option for exports that omit empty properties;
+- removes globally excluded field paths before calculating differences and resource status;
 - flags duplicate keys instead of merging them silently.
 
 Every field then gets one of these statuses:
@@ -291,6 +310,7 @@ Every field then gets one of these statuses:
 | **Different** | The value exists in every environment but is not equal. |
 | **Missing** | The field, resource or virtual host exists in some environments but not others. |
 | **Extra** | The field, resource or virtual host exists in only one environment. |
+| **Ignored** | The user globally excluded this field path from the current comparison. It is shown under **Show all fields** but does not count as a difference. |
 | **Secret changed** | A secret field differs; the value is not available to the UI. |
 | **Type mismatch** | The same path has incompatible types, for example a string in one file and a number in another. |
 | **Ambiguous** | The key is not unique, so the tool cannot match entries safely. |
@@ -338,6 +358,21 @@ The current samples key resources by name; no resource-level numeric ID is prese
 
 The key is scoped by virtual host and collection so different resource types cannot collide. If a chosen key is not unique, the tool reports **ambiguous** rather than inventing a pairing. A per-resource toggle is intentionally avoided: it makes matching inconsistent and hard to audit.
 
+### Global field exclusions
+
+A comparison field row has an **Ignore** checkbox. The checkbox stores the row's canonical field path, for example `RESOURCE_LIST.listAttribs.ADDRESS_LIST` or `HOST.serverId`, in one session-wide exclusion set. The path is then skipped for every resource, not only the resource currently open. This is deliberate: a per-resource exception would make the result depend on which resource happened to be reviewed and would be difficult to audit.
+
+The exclusion is applied inside the worker on every comparison pass. A resource with no remaining differences becomes **Same**, even when excluded rows still have different raw values. Ignored rows retain their raw status internally and are visible as **Ignored** when **Show all fields** is enabled. The Resources toolbar shows the complete exclusion list with a remove action for each path and a **Compare all again** action.
+
+The list is volatile:
+
+- it is not saved to `localStorage`, IndexedDB, cookies or the server;
+- it is cleared by **Forget** and when a new comparison is opened;
+- the exclusion list itself is not included in exports, although exported resource status and difference counts reflect it;
+- it never changes secret redaction.
+
+Because exclusions are path-based, they apply to every resource sharing that path. A menu or cache entry includes its key in the path, so excluding one entry does not exclude all menu or cache entries. If a future format needs value-pattern rules, that should be a separate, explicitly scoped feature rather than silently broadening this checkbox.
+
 ### Services
 
 Service details are compared under their owning virtual host and resource. If a service is a top-level object in the export, it is keyed by name at that level. Detailed service fields are compared with the same field-level rules as system settings.
@@ -361,9 +396,11 @@ The current redaction heuristic is not omniscient. A secret in an unusually name
 
 ### Expected differences
 
-Some values are legitimately different per environment: certificate paths, URLs, hostnames, tenant IDs and endpoints. Certificate contents live in separate files and are out of scope; only the paths in the config are compared. **System-wide settings are expected to be identical** and are treated as high-severity drift by default.
+Some values are legitimately different per environment: certificate paths, URLs, IP addresses, hostnames, tenant IDs and endpoints. Certificate contents live in separate files and are out of scope; only the paths in the config are compared. **System-wide settings are expected to be identical** and are treated as high-severity drift by default.
 
-The user can tick a difference as **OK / reviewed** for the current session, so it stays visible but no longer counts as an unexpected difference. The tick can optionally carry a reviewer name and a comment. The state is in memory only; refreshing or closing the tab clears it.
+The implemented **Ignore** checkbox provides a session-wide field exclusion for expected differences and recalculates statuses immediately. It is coarser than the planned review ledger: it records no reviewer, comment or timestamp, and it does not persist; the exclusion list is visible only in the current tab. Use it for stable, well-understood field paths, not as a substitute for a documented review decision.
+
+The planned **OK / reviewed** flow is separate: the user can tick an individual difference for the current session, so it stays visible but no longer counts as an unexpected difference. The tick can optionally carry a reviewer name and a comment. That state is also in memory only; refreshing or closing the tab clears it.
 
 ### Acknowledgements and downloads
 
@@ -412,7 +449,7 @@ Static server ──► HTML, CSS, JavaScript only
 - **No upload endpoint.** Files are read with the browser File API and parsed in a Web Worker. Configuration data is never sent to the server.
 - **No server-side storage.** The server is a static file server with `GET`/`HEAD` only. There is no API, database, session store or log of configuration content.
 - **Client-side downloads only.** Documentation reports and acceptance ledgers are generated in the browser with a `Blob`. There is no report endpoint, and the server never receives or writes the downloaded file.
-- **No browser storage in v1.** No `localStorage`, `sessionStorage`, IndexedDB, cookies or service worker cache for configuration data. Reloading or closing the tab clears everything. An explicit **Forget** action terminates the worker and discards the in-memory model.
+- **No browser storage in v1.** No `localStorage`, `sessionStorage`, IndexedDB, cookies or service worker cache for configuration data. Global field exclusions are also session-only memory state. Reloading or closing the tab clears everything. An explicit **Forget** action terminates the worker and discards the in-memory model and exclusion list.
 - **Classified secret values never reach the DOM.** They stay in the worker's in-memory vault and are reduced to same/changed/missing before the redacted model is sent to the main thread.
 - **Classified secret values never appear in URLs, logs, clipboard, exports or error messages.** The app never puts configuration into a query string or hash, never logs file content, and only allows copying non-secret values.
 - **No third-party requests.** No CDN, external fonts, analytics, crash reporting or telemetry. A strict Content Security Policy with `connect-src 'none'` blocks programmatic network requests from the page; together with no third-party assets and text-only rendering, this removes the normal exfiltration paths.
@@ -432,6 +469,7 @@ Static server ──► HTML, CSS, JavaScript only
 - **Non-secret configuration is still sensitive.** Hostnames, internal URLs, resource names and topology can be valuable to an attacker even when credentials are redacted.
 - **Transport is external.** If the app is exposed beyond localhost, put it behind HTTPS and an authenticating reverse proxy. The app does not encrypt traffic by itself.
 - **Secret detection is not omniscient.** A secret hidden in an unusual free-text field may not be recognised. The redaction review exists so the user can add fields before relying on the result.
+- **Global field exclusions can hide real drift.** Excluding a path suppresses its difference in every resource in the current comparison, including a secret-bearing field. The exclusion list is visible in the toolbar and never persisted, but it is a review aid, not a security control. Review excluded paths before treating the result as clean.
 
 The in-app **Security & privacy** page will state these limits in the same plain language, so users are informed before they import a file.
 
@@ -499,12 +537,12 @@ LICENSE
 1. **Import.** Add 1-5 environment cards. Each card has a label and accepts multiple files by picker or drag-and-drop. Leave a card empty for single-file ACL browsing and export. The screen explains that files stay in the browser and that secrets are redacted.
 2. **Summary.** After parsing, show environments, resources, differences, missing resources, ACL rule count and schema drift.
 3. **Resources.** Search and filter by status or virtual host. Each row shows type, addresses, ports, ACL count, menu count, status and difference count. **Export all resources (CSV)** exports every resource row, not just the current page or filtered view.
-4. **Resource detail.** Click a resource to compare every field across environments. Only differences show by default; **Show all fields** reveals the full compared profile. Secret values appear as `[redacted]`.
+4. **Resource detail.** Click a resource to compare every field across environments. Only differences show by default; **Show all fields** reveals the full compared profile. Secret values appear as `[redacted]`. Tick **Ignore** on a row to exclude that field path from every resource in the current comparison; the **Ignored fields** panel in the Resources toolbar lists and restores exclusions. Ignored rows are hidden from the default difference view and do not affect resource status.
 5. **ACL rules.** View every rule from every resource, from both ACL sources. Filter by environment, resource, virtual host, source, auth method, encryption, deny and free text.
 6. **Export.** Export all ACL rules or only the filtered view as CSV, HTML or JSON. Exports are generated in the browser with a Blob.
 7. **Schema drift.** See which sections are shared, missing or unknown. This separates version differences from environment differences.
 8. **Security & privacy.** A plain-language page explains what is read, what is never sent, what is stored (nothing), what redaction does and what it cannot protect.
-9. **Forget.** Terminate the worker, clear the model and return to the import screen.
+9. **Forget.** Terminate the worker, clear the model, clear all global field exclusions and return to the import screen.
 
 ### Design direction
 
@@ -526,20 +564,21 @@ node --test tests/*.test.mjs
 
 Current status:
 
-- **15/15 parser and export tests pass** under Node 22, including single-file mode, multi-file merging, resource CSV export, visible-column export subsets, generic secret-key redaction and content-free JSON parse errors.
+- **16/16 parser and export tests pass** under Node 22, including global field exclusions, single-file mode, multi-file merging, resource CSV export, visible-column export subsets, generic secret-key redaction and content-free JSON parse errors.
 - **Repository verification passes**: required files, no forbidden storage/network/HTML-injection APIs, CSP present, Compose hardening, MIT license and CI secret-scan configuration.
 - **Server smoke test passes**: static shell, JS, CSP, `no-store`, content type, 404, path-traversal rejection and POST rejection.
 - **Gitleaks secret scan passes** over the working tree and full git history; only synthetic demo/test values are allowlisted.
-- **Browser smoke test passes** with Chromium/Playwright: demo import, file-based import, `.bup` rejection, single-file ACL mode, resource table, resource CSV export, resource detail, ACL service columns, ACL rule detail panel, responsive column defaults, column toggles, secret redaction, ACL filters, CSV download, schema drift, empty browser storage and no external requests.
+- **Browser smoke test passes** with Chromium/Playwright: demo import, file-based import, `.bup` rejection, single-file ACL mode, resource table, resource CSV export, resource detail, global field ignore and restore, ACL service columns, ACL rule detail panel, responsive column defaults, column toggles, secret redaction, ACL filters, CSV download, schema drift, empty browser storage and no external requests.
 - **Docker build is covered by CI**; the local development environment used here has no Docker daemon.
 
-The test suite covers section splitting, comments, the `<HEADER>` marker, properties, tables, JSON, secret markers, resource profiles, VH assignment, single-file mode, multi-file merging per environment, both ACL sources, missing/different resources, schema drift, empty-versus-absent comparison, the bundled demo, resource CSV export, CSV formula-injection protection, HTML escaping and JSON export.
+The test suite covers section splitting, comments, the `<HEADER>` marker, properties, tables, JSON, secret markers, resource profiles, VH assignment, global field exclusions across multiple resources, single-file mode, multi-file merging per environment, both ACL sources, missing/different resources, schema drift, empty-versus-absent comparison, the bundled demo, resource CSV export, CSV formula-injection protection, HTML escaping and JSON export.
 
 Still to add:
 
 - real-world sanitised fixtures from the raw config files;
 - 5,000-row performance tests;
 - cross-section numeric reference resolution for the full global diff;
+- saved or importable field-exclusion presets for repeatable reviews;
 - the acceptance ledger and OK/reviewed ticks;
 - browser-based accessibility checks beyond the current keyboard/table semantics.
 
@@ -555,10 +594,11 @@ The first release works with the two supplied samples and the synthetic demo. Th
 4. **Resource scope and ACL authoritative source.** The first release includes `<RESOURCE_LIST>`, `<HOST>`, `<ACL>`, `<ACCESS_CONTROL_LIST>`, `<MENU>`, `<CACHE_CONTROL>`, `<HOST_ESIGN>` and `<VH_SELECT_RESOURCES>`, and exports both ACL sources with CSV/HTML/JSON. Confirm whether that is the desired resource tree, whether one ACL source is authoritative, and whether the export columns are sufficient.
 5. **Identity and references.** Number-based resource matching is deferred because the samples have no stable resource-level numeric ID. Confirm whether numeric IDs are stable across environments, what natural names exist for ID-only sections such as `<USER_AGENTS>`, and whether cross-section references should be resolved for the full diff.
 6. **Format details.** Encoding (UTF-8, ISO-8859-1), duplicate keys, empty versus absent properties, URL-encoded values, table separators/quoting, and the meaning of the `<HEADER>` marker. The raw files will answer most of these.
-7. **Ignore policy.** The first release has an `Empty = absent` toggle but does not display global metadata. Confirm ignoring `<CONFIG>` timestamps, `LOG_SETTINGS.node_debug_log` start/end times, `nextvirtualhostid`, `menunextuniqueid`, `restartfrontendid`, and any other runtime state for the full diff.
+7. **Metadata ignore policy.** The first release has an `Empty = absent` toggle and a session-wide field exclusion list, but does not display global metadata. Confirm ignoring `<CONFIG>` timestamps, `LOG_SETTINGS.node_debug_log` start/end times, `nextvirtualhostid`, `menunextuniqueid`, `restartfrontendid`, and any other runtime state for the full diff.
 8. **Secret rules.** Redaction is implemented for the observed keys, especially `accessToken` in `<CA_SETTINGS>`, `key` in `<YUBIKEY>`, `secret` in `<TUNNEL_CLIENT>`, `certificatepass`, `controlpassword`, `consolemenupassword`, `AdminPassword`, `AdminPasswordLocal`, `smtppassword`, `failover_pwd`, `certpwd`, `FORCE_INTERNAL_AUTH_PWD` and `pwdhash`. Confirm whether any are hashes or identifiers rather than live secrets.
 9. **Review output details.** The acceptance ledger and OK/reviewed ticks are planned. Decide whether the documentation should include non-secret values, whether it should redact internal hostnames, IPs, email addresses, phone numbers and report filters, whether to require a reviewer/comment, and what OK means.
 10. **Version drift.** The schema view already separates missing sections from resource differences. Confirm whether the two samples are from different OneGate versions and whether schema drift should be treated as a warning rather than an error.
+11. **Exclusion presets.** Global field exclusions are session-only. Decide whether a future release should export/import a review preset, require a reviewer/comment for each exclusion, and support value-pattern rules in addition to exact field paths. Any saved preset must contain field paths only, never configuration values.
 
 ## Non-goals for the first version
 

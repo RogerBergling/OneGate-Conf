@@ -32,6 +32,13 @@ async function readFiles(environment) {
   return files;
 }
 
+function comparisonOptions(message) {
+  return {
+    emptyAsAbsent: message.emptyAsAbsent !== false,
+    ignoredFields: Array.isArray(message.ignoredFields) ? message.ignoredFields : [],
+  };
+}
+
 async function analyze(message) {
   state.vault.clear();
   state.environments = [];
@@ -52,9 +59,7 @@ async function analyze(message) {
     state.vault.clear();
   }
 
-  state.result = buildComparison(state.environments, {
-    emptyAsAbsent: message.emptyAsAbsent !== false,
-  });
+  state.result = buildComparison(state.environments, comparisonOptions(message));
 
   self.postMessage({ type: 'result', result: state.result });
 }
@@ -68,9 +73,7 @@ self.onmessage = async (event) => {
     }
 
     if (message.type === 'recompare') {
-      state.result = buildComparison(state.environments, {
-        emptyAsAbsent: message.emptyAsAbsent !== false,
-      });
+      state.result = buildComparison(state.environments, comparisonOptions(message));
       self.postMessage({ type: 'result', result: state.result });
       return;
     }
