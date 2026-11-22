@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import argparse
 import mimetypes
+import os
 import socket
 import sys
 import threading
@@ -21,6 +22,19 @@ from urllib.parse import unquote, urlsplit
 
 ROOT = Path(__file__).resolve().parent
 PUBLIC_DIR = (ROOT / "public").resolve()
+
+APP_THEME_VALUES = {"dark", "light", "system"}
+APP_THEME_ALIASES = {"auto": "system", "white": "light"}
+
+
+def _theme_default() -> str:
+    value = os.environ.get("APP_THEME", "dark").strip().lower()
+    value = APP_THEME_ALIASES.get(value, value)
+    return value if value in APP_THEME_VALUES else "dark"
+
+
+APP_THEME = _theme_default()
+THEME_JS = f'window.__APP_THEME__ = "{APP_THEME}";\n'
 
 SECURITY_HEADERS = {
     "Content-Security-Policy": (
@@ -123,10 +137,26 @@ class OneGateHandler(BaseHTTPRequestHandler):
         if not head_only:
             self.wfile.write(data)
 
+    def _serve_theme(self, head_only: bool = False) -> None:
+        body = THEME_JS.encode("utf-8")
+        self.send_response(HTTPStatus.OK)
+        self._send_common_headers()
+        self.send_header("Content-Type", "text/javascript; charset=utf-8")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        if not head_only:
+            self.wfile.write(body)
+
     def do_GET(self) -> None:  # noqa: N802
+        if urlsplit(self.path).path == "/theme.js":
+            self._serve_theme()
+            return
         self._serve(head_only=False)
 
     def do_HEAD(self) -> None:  # noqa: N802
+        if urlsplit(self.path).path == "/theme.js":
+            self._serve_theme(head_only=True)
+            return
         self._serve(head_only=True)
 
     def _reject_method(self) -> None:

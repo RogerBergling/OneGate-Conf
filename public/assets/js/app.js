@@ -1337,7 +1337,9 @@ function bindEvents() {
 
   dom.themeToggle.addEventListener('click', () => {
     const current = document.documentElement.dataset.theme === 'light' ? 'light' : 'dark';
-    document.documentElement.dataset.theme = current === 'light' ? 'dark' : 'light';
+    const next = current === 'light' ? 'dark' : 'light';
+    document.documentElement.dataset.theme = next;
+    document.documentElement.style.colorScheme = next;
   });
 
   dom.tabs.forEach((tab) => {

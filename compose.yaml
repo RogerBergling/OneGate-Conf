@@ -21,6 +21,8 @@ services:
     environment:
       PYTHONDONTWRITEBYTECODE: "1"
       PYTHONUNBUFFERED: "1"
+      # First-visit theme: dark, light or system. A saved toggle choice wins.
+      APP_THEME: ${APP_THEME:-dark}
     read_only: true
     tmpfs:
       - /tmp:rw,noexec,nosuid,size=16m

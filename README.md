@@ -65,19 +65,46 @@ This application **does not decrypt `.bup` backup files**, and backup decryption
 
 Do not upload, commit or share real configuration files. Use `fixtures/private/` for local samples and redact secrets before sharing anything outside your environment.
 
+## Theme modes
+
+`APP_THEME` sets the first-visit theme. The theme toggle saves the visitor's
+explicit choice, which overrides this default.
+
+| Value | Behavior |
+|---|---|
+| `dark` | Dark theme (default) |
+| `light` | Light/white theme |
+| `system` | Follow the browser/OS `prefers-color-scheme` |
+
+Set it in `.env` or Compose:
+
+```yaml
+environment:
+  APP_THEME: ${APP_THEME:-dark}
+```
+
+Invalid values fall back to `dark`. The default is served by `/theme.js` and
+applied before first paint, so there is no theme flash. The toggle is
+session-only: this app deliberately writes no browser storage, so the next
+visit starts from `APP_THEME` again.
+
 ## Screenshots
 
-| Resources | ACL rules |
+| Import (light theme) | Resources |
 | --- | --- |
-| ![Resource comparison](docs/screenshots/resources.png) | ![Global ACL view](docs/screenshots/acl-rules.png) |
+| ![Import screen in light theme](docs/screenshots/import-light.png) | ![Resource comparison](docs/screenshots/resources.png) |
 
-| Resource detail | Schema drift |
+| ACL rules | Resource detail |
 | --- | --- |
-| ![Resource detail](docs/screenshots/resource-detail.png) | ![Schema drift](docs/screenshots/schema-drift.png) |
+| ![Global ACL view](docs/screenshots/acl-rules.png) | ![Resource detail](docs/screenshots/resource-detail.png) |
 
-| Single-file ACL mode | ACL column chooser |
+| Schema drift | Single-file ACL mode |
 | --- | --- |
-| ![Single-file ACL export](docs/screenshots/single-file-acl.png) | ![ACL column chooser](docs/screenshots/acl-columns.png) |
+| ![Schema drift](docs/screenshots/schema-drift.png) | ![Single-file ACL export](docs/screenshots/single-file-acl.png) |
+
+| ACL column chooser |
+| --- |
+| ![ACL column chooser](docs/screenshots/acl-columns.png) |
 
 The screenshots use the bundled demo with `example.com` names and TEST-NET addresses.
 

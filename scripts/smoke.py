@@ -70,6 +70,10 @@ def main() -> int:
         if headers.get("X-Content-Type-Options") != "nosniff":
             failures.append("X-Content-Type-Options is not nosniff")
 
+        status, headers, theme_body = request(f"{base}/theme.js")
+        if status != 200 or b"window.__APP_THEME__" not in theme_body:
+            failures.append("GET /theme.js did not expose window.__APP_THEME__")
+
         status, headers, _ = request(f"{base}/assets/js/app.js", method="HEAD")
         if status != 200:
             failures.append(f"HEAD /assets/js/app.js returned {status}")

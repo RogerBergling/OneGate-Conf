@@ -19,6 +19,7 @@ REQUIRED = [
     "public/index.html",
     "public/assets/css/app.css",
     "public/assets/js/app.js",
+    "public/assets/js/theme-init.js",
     "public/assets/js/worker.js",
     "public/assets/js/demo.js",
     "public/assets/js/export.js",
