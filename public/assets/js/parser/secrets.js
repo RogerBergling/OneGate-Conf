@@ -1,7 +1,10 @@
-const SENSITIVE_KEY_SUFFIX = /(password|passwd|pwd|secret|token|apikey|privatekey|accesstoken|passphrase)$/i;
+// Normalize camelCase, snake_case, kebab-case and dotted names before
+// matching. Over-redaction is safer than leaking a credential from an export.
+const SENSITIVE_KEY_PATTERN = /(password|passwd|pwd|secret|token|apikey|privatekey|accesskey|passphrase)/;
 
 export function isSensitiveKeyName(key) {
-  return SENSITIVE_KEY_SUFFIX.test(String(key ?? ''));
+  const normalized = String(key ?? '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  return SENSITIVE_KEY_PATTERN.test(normalized);
 }
 
 export class SecretVault {

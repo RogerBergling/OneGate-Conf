@@ -103,10 +103,11 @@ function parseList(section) {
   return { kind: 'list', value, warnings: [], errors: [] };
 }
 
-function parseTable(section, schema) {
+function parseTable(section, schema, vault) {
   const rows = [];
   const warnings = [];
   const errors = [];
+  const secretKeys = new Set(schema.secrets || []);
 
   for (const line of section.lines) {
     const text = line.text;
@@ -117,7 +118,11 @@ function parseTable(section, schema) {
     if (schema.columns) {
       const row = {};
       for (let index = 0; index < schema.columns.length; index += 1) {
-        row[schema.columns[index]] = tokens[index] ?? null;
+        const column = schema.columns[index];
+        const rawValue = tokens[index] ?? null;
+        row[column] = (secretKeys.has(column) || isSensitiveKeyName(column))
+          ? secretMarker(vault, rawValue, column, `${section.name}.${column}`)
+          : rawValue;
       }
       if (schema.joinFrom !== undefined) {
         const rest = tokens.slice(schema.joinFrom).join(' ').trim();
@@ -148,9 +153,16 @@ function redactJson(value, secretKeys, vault, sectionName, path = []) {
     const output = {};
     for (const [key, child] of Object.entries(value)) {
       const childPath = [...path, key];
-      if ((secretKeys.has(key) || isSensitiveKeyName(key))
-        && (typeof child === 'string' || typeof child === 'number' || child === null || child === undefined)) {
-        output[key] = secretMarker(vault, child, key, `${sectionName}.${childPath.join('.')}`);
+      if (secretKeys.has(key) || isSensitiveKeyName(key)) {
+        // Redact the whole value, including arrays and nested objects. A
+        // sensitive parent key must not lose its context when the child is
+        // an array.
+        output[key] = secretMarker(
+          vault,
+          typeof child === 'object' && child !== null ? JSON.stringify(child) : child,
+          key,
+          `${sectionName}.${childPath.join('.')}`,
+        );
       } else {
         output[key] = redactJson(child, secretKeys, vault, sectionName, childPath);
       }
@@ -224,7 +236,7 @@ export function parseFile({ fileName = '', text = '' }, vault) {
         parsed = parseList(section);
         break;
       case 'table':
-        parsed = parseTable(section, schema);
+        parsed = parseTable(section, schema, vault);
         break;
       case 'json':
         parsed = parseJson(section, schema, vault);

@@ -33,7 +33,11 @@ const BASE = `<HEADER>\tTEST_CONFIG
           "TYPE": "https",
           "FORCE_INTERNAL_AUTH_PWD": "demo-resource-secret",
           "PASSWORD": "demo-unknown-secret",
-          "clientSecret": "demo-camel-secret"
+          "clientSecret": "demo-camel-secret",
+          "api_key": "demo-snake-secret",
+          "access-token": "demo-kebab-secret",
+          "private.key": "demo-dot-secret",
+          "token_list": ["demo-array-secret"]
         },
         "listAttribs": {
           "ADDRESS_LIST": ["192.0.2.10"],
@@ -77,6 +81,7 @@ const BASE = `<HEADER>\tTEST_CONFIG
             "group": "*",
             "auth": "smstoken",
             "client_secret": "demo-acl-secret",
+            "api_key": "demo-acl-snake-secret",
             "encryption": "high",
             "ipadress": "*",
             "time": null,
@@ -155,7 +160,12 @@ test('parseFile parses properties, JSON, tables and redacts secrets', () => {
   assert.equal(server.value.defaulthostname, 'portal.example.com');
   assert.equal(server.value.controlpassword.__secret, true);
   const serialized = JSON.stringify(parsed);
-  for (const secret of ['demo-control-secret', 'demo-resource-secret', 'demo-unknown-secret', 'demo-camel-secret', 'demo-acl-secret']) {
+  for (const secret of [
+    'demo-control-secret', 'demo-resource-secret', 'demo-unknown-secret',
+    'demo-camel-secret', 'demo-acl-secret', 'demo-snake-secret',
+    'demo-kebab-secret', 'demo-dot-secret', 'demo-array-secret',
+    'demo-acl-snake-secret',
+  ]) {
     assert.equal(serialized.includes(secret), false, `secret leaked: ${secret}`);
   }
 
@@ -194,8 +204,13 @@ test('buildEnvironment assembles resource profiles and ACL records', () => {
   assert.equal(portal.aclRules[0].localService, '/');
   assert.equal(portal.aclRules[0].resourceType, 'web');
   assert.equal(portal.aclRules[0].extra.client_secret, '[redacted]');
+  assert.equal(portal.aclRules[0].extra.api_key, '[redacted]');
   assert.equal(portal.resourceList.stringAttribs.PASSWORD.__secret, true);
   assert.equal(portal.resourceList.stringAttribs.clientSecret.__secret, true);
+  assert.equal(portal.resourceList.stringAttribs.api_key.__secret, true);
+  assert.equal(portal.resourceList.stringAttribs['access-token'].__secret, true);
+  assert.equal(portal.resourceList.stringAttribs['private.key'].__secret, true);
+  assert.equal(portal.resourceList.stringAttribs.token_list.__secret, true);
   assert.equal(environment.aclRecords.length, 2);
   assert.equal(environment.nodeCount, 0);
   assert.ok(environment.unknownSections.includes('FUTURE_SECTION'));

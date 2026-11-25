@@ -2,6 +2,10 @@
 
 **Find configuration drift between OneGate environments in the browser — without uploading configuration files or exposing secrets.**
 
+**Project facts (2026-11-25):** unversioned (HEAD `cb86770`) · browser SPA +
+Python 3 standard-library server · no frontend build step · 16 Node tests ·
+MIT licensed.
+
 > **Status: first release implemented.** The section-aware parser, resource comparison, global field exclusions, global ACL view, CSV/HTML/JSON export and Docker packaging are in this repository. The first release focuses on resources and ACLs. Full global-setting diff, acceptance ledger/OK ticks and number-based matching are next.
 
 ## Quick start
@@ -76,7 +80,8 @@ explicit choice, which overrides this default.
 | `light` | Light/white theme |
 | `system` | Follow the browser/OS `prefers-color-scheme` |
 
-Set it in `.env` or Compose:
+Set it in `.env` when using Compose. A direct `python3 start.py` reads the
+process environment only; export `APP_THEME` in the shell for that case.
 
 ```yaml
 environment:
@@ -141,7 +146,7 @@ The goal is a local-first browser tool that answers, for 1-5 named environments.
 - Show the **local service** and **resource type** for detailed ACL rules, and open a full rule detail panel from any row or source badge.
 - Adapt the ACL table to the screen width and let the user choose exactly which columns are visible with a checkbox **Columns** picker.
 - **Export all ACL rules**, or only the filtered view, as CSV, HTML or JSON. Exports are generated in the browser.
-- Redact passwords, keys, tokens, `client_secret` and `FORCE_INTERNAL_AUTH_PWD` before rendering.
+- Redact passwords, keys, tokens, `client_secret` and `FORCE_INTERNAL_AUTH_PWD` before rendering. Key matching is separator-normalized, so `api_key`, `api-key`, `private.key` and array-valued secrets are covered too.
 - Reject `.bup` backup files with a clear message; extract the plain-text config first.
 - Run entirely in memory: no upload endpoint, no browser storage, no analytics, no third-party requests.
 - Include a synthetic **demo** so the application can be evaluated without real configuration.
@@ -169,7 +174,7 @@ The goal is a local-first browser tool that answers, for 1-5 named environments.
 | Settings scope | Resource and ACL sections are compared now. The full global/per-virtual-host setting diff is planned. |
 | Metadata | Runtime timestamps and counters are excluded from the first-release views; the full ignore policy is still being confirmed. |
 | Field exclusions | A checkbox on any compared field row excludes that field path from every resource in the current comparison. Resource status, summary counts and resource CSV export are recalculated. The list is in memory only and never reveals secret values. |
-| Secrets | Section-aware redaction for passwords, keys, tokens and `client_secret`; no reveal action. |
+| Secrets | Section-aware, separator-normalized redaction for passwords, keys, tokens, `client_secret`, snake/kebab/dotted names and array values; no reveal action. |
 | Certificates | Certificate content is out of scope. Only the certificate paths present in the config are compared. |
 | System settings | Expected to be identical. The full global-setting diff is planned. |
 | Certificate and URL differences | Expected/acknowledgeable; OK/reviewed ticks are planned. |
@@ -666,6 +671,14 @@ The container runs as a non-root user with a read-only root filesystem, no Linux
 - No real OneGate exports or customer data are committed; the demo uses `example.com` and TEST-NET addresses.
 - Real exports can contain live credentials. Never commit them or paste them unredacted into chat. Replace every secret value with `REDACTED` and rotate any credential that has been exposed.
 - Run `git-create` in this directory to verify the repository before pushing.
+
+
+## AI assistance
+
+Developed with AI assistance and human review. The maintainer defines the
+requirements, threat model and acceptance criteria; AI helps write and refactor
+code; the maintainer runs, tests and verifies the result. The software is
+provided as-is, without warranty.
 
 ## License
 
